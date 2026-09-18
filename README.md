@@ -15,11 +15,14 @@ That experience helps me spot useful opportunities for software and automation. 
 
 ### What I’m building
 
-**[Autochemix OS](https://github.com/Gek2or/Autochemix-)**  
+**[Autochemix OS](https://github.com/Gek2or/Autochemix-)** · [Live demo](https://gek2or.github.io/Autochemix-/)  
 A browser-based logistics prototype connecting dispatcher, driver, and customer views. It explores how order handling and delivery updates can become clearer for everyone involved.
 
 **[Muuttobotti](https://github.com/Gek2or/muuttobotti-finland)**  
 A multilingual moving-service website with pricing and booking interfaces, shaped by the questions customers actually ask.
+
+**[Portfolio / CV](https://gek2or.github.io/stanislav_AI_CV/)**  
+A longer case-study format covering my operational background, technical direction, and applied AI work.
 
 ### A few things I believe
 
