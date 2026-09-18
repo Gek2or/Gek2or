@@ -15,7 +15,7 @@ That experience helps me spot useful opportunities for software and automation. 
 
 ### Freshest work
 
-**[Muuttobotti](https://github.com/Gek2or/muuttobotti-finland)**  
+**[Muuttobotti](https://github.com/Gek2or/muuttobotti-finland)** · [Live service](https://muuttobotti.fi/)  
 A multilingual moving-service product with a deterministic pricing calculator and a server-side AI inventory flow. Customer text is converted into structured items with exact evidence and explicit uncertainties; the customer confirms the result before it affects the calculation.
 
 **[Autochemix OS](https://github.com/Gek2or/Autochemix-)** · [Live demo](https://gek2or.github.io/Autochemix-/)  
