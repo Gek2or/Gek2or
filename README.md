@@ -22,8 +22,8 @@ That experience helps me turn customer confusion into concrete features, workflo
 **[Muuttobotti](https://github.com/Gek2or/muuttobotti-finland)** · [live service](https://muuttobotti.fi/)  
 A multilingual moving-service product with deterministic pricing and a bounded AI inventory flow. Customer text becomes structured items with exact evidence and explicit uncertainty; the customer confirms the result before it affects the calculation.
 
-**[ARKI](https://github.com/Gek2or/ARKI)**  
-A Nordic weekly-planning concept connecting meals, shopping baskets, promotions, package sizes, and the real cost of a trip. The relationships between screens and data are part of the product, not an afterthought.
+**[Tuuma Next](https://github.com/Gek2or/tuuma-next-concept)** · [live demo](https://tuuma-next-concept.stasgek.chatgpt.site/)  
+A Finnish-first rental-housing concept with shared source geometry across floor plans, 3D cutaways, and real-time room tours. It connects the resident journey, service workflows, and clear boundaries around demo data and AI.
 
 **[ASCII//RAIN](https://github.com/Gek2or/ascii-rain)** · [play in browser](https://gek2or.github.io/ascii-rain/)  
 A Godot 4.7 action game with an ASCII-rendered city, third-person movement, combat, relic progression, persistent archive state, and a published Web build. It is also a useful reminder that "the player can see it" is a requirement, not a decorative bonus.
