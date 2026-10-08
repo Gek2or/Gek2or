@@ -28,8 +28,8 @@ A Finnish-first rental-housing concept with shared source geometry across floor 
 **[ASCII//RAIN](https://github.com/Gek2or/ascii-rain)** · [play in browser](https://gek2or.github.io/ascii-rain/)  
 A Godot 4.7 action game with an ASCII-rendered city, third-person movement, combat, relic progression, persistent archive state, and a published Web build. It is also a useful reminder that "the player can see it" is a requirement, not a decorative bonus.
 
-**[Donetsk 2013](https://github.com/Gek2or/donetsk-2013)**  
-A reference-driven 3D environment study of pre-war Donetsk, combining historical research with Blender and Unity work.
+**[Donetsk 2011](https://github.com/Gek2or/donetsk-2011)**  
+An evidence-based Unreal Engine 5.8 reconstruction study with editable Blender assets, source comparisons, a walkable quarter, and explicit uncertainty where the historical record is incomplete.
 
 **[Portfolio / CV](https://gek2or.github.io/stanislav_AI_CV/)**  
 The redesigned portfolio with current case studies for Finnish product, frontend, and automation roles.
