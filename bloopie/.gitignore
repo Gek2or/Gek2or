@@ -1,7 +1,7 @@
 .godot/
 *.translation
-export_presets.cfg
 android/
 *.apk
 *.aab
 *.ipa
+build/

@@ -464,11 +464,10 @@ func _style_bubble() -> void:
 	var box := StyleBoxFlat.new()
 	box.bg_color = Color("#FFFDF9")
 	box.set_corner_radius_all(44)
-	box.set_border_width_all(5)
-	box.border_color = BloopieArt.INK
-	box.shadow_color = Color(BloopieArt.INK, 0.25)
-	box.shadow_size = 10
-	box.shadow_offset = Vector2(0, 6)
+	box.shadow_color = Color(0.05, 0.04, 0.14, 0.35)
+	box.shadow_size = 22
+	box.shadow_offset = Vector2(0, 10)
+	box.anti_aliasing_size = 1.5
 	_bubble.add_theme_stylebox_override("panel", box)
 	_reply.add_theme_color_override("font_color", BloopieArt.INK)
 	_reply.add_theme_font_size_override("font_size", 40)

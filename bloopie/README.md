@@ -38,3 +38,15 @@
 
 Ответ (`BloopieAIResponse`): `reply_text`, `emotion_animation` (одна из 12 эмоций),
 `stat_deltas { mood_delta, energy_delta, affection_delta }`, `save_to_memory`.
+
+## Сборка APK
+
+Пресет `Android` лежит в `export_presets.cfg` (пакет `com.bloopie.cozyfriend`, arm64-v8a +
+armeabi-v7a, разрешения INTERNET и VIBRATE). Нужны шаблоны экспорта Godot 4.3 и пути к
+Android SDK / JDK / debug-keystore в Editor Settings → Export → Android.
+
+```
+godot --headless --path bloopie --export-debug "Android" build/bloopie-debug.apk
+```
+
+Шрифт интерфейса — Nunito (SIL OFL, `art/fonts/OFL.txt`).

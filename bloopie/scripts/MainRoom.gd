@@ -2,14 +2,15 @@ extends Node2D
 ## Root of the game: wires the HUD to Bloopie, the AI client, the care drawer,
 ## the vocal mini-game, the polaroid album and the trial paywall.
 
-const CHAT_ZOOM := Vector2(1.18, 1.18)
-const CAMERA_HOME := Vector2(540, 960)
-const CAMERA_CHAT := Vector2(540, 1010)
-const CAMERA_CARE := Vector2(540, 1230)
+const HOME_ZOOM := Vector2(1.15, 1.15)
+const CHAT_ZOOM := HOME_ZOOM * 1.18
+const CAMERA_HOME := Vector2(540, 1010)
+const CAMERA_CHAT := Vector2(540, 1040)
+const CAMERA_CARE := Vector2(540, 1250)
 const POLAROID_DELAY := 0.45
 const POLAROID_SIDE := 780.0
 const CHAT_BAR_HEIGHT := 110.0
-const CHAT_BAR_BOTTOM := 340.0
+const CHAT_BAR_BOTTOM := 410.0
 const QUICK_REPLIES_GAP := 20.0
 const QUICK_REPLIES_HEIGHT := 90.0
 
@@ -123,7 +124,8 @@ func _style_hud() -> void:
 	UIStyle.button(_btn_play, UIStyle.LILAC)
 	UIStyle.button(_btn_sleep, UIStyle.BUTTER)
 	for button: Button in _dock.get_children():
-		button.add_theme_font_size_override("font_size", 34)
+		button.add_theme_font_size_override("font_size", 32)
+		button.add_theme_constant_override("icon_max_width", 76)
 	UIStyle.line_edit(_message_input)
 	UIStyle.button(_send_button, UIStyle.SKY, 55)
 	for chip: Button in _quick_replies.get_children():
@@ -135,7 +137,9 @@ func _style_hud() -> void:
 	UIStyle.button(_unfreeze_button, UIStyle.BUTTER)
 	UIStyle.button(_paywall_close, UIStyle.SKY)
 	UIStyle.label(_toast, 34, Color.WHITE)
-	_toast.add_theme_stylebox_override("normal", UIStyle.card(Color(UIStyle.INK, 0.88), 36, 0))
+	_toast.add_theme_stylebox_override("normal", UIStyle.glass(40))
+	$HUD/TopPanel.add_theme_stylebox_override("panel", UIStyle.glass(60))
+	$HUD/DockPanel.add_theme_stylebox_override("panel", UIStyle.glass(64))
 	_toast.visible = false
 	_flash.visible = false
 
@@ -151,6 +155,11 @@ func _set_hud_enabled(enabled: bool) -> void:
 	if not enabled:
 		_set_chat_open(false)
 		_set_care_open(false)
+
+
+func _set_dock_visible(shown: bool) -> void:
+	_dock.visible = shown
+	$HUD/DockPanel.visible = shown
 
 
 func _show_toast(text: String) -> void:
@@ -221,7 +230,7 @@ func _frame_camera() -> void:
 	if _camera_tween != null and _camera_tween.is_valid():
 		_camera_tween.kill()
 	_camera_tween = create_tween().set_parallel().set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
-	_camera_tween.tween_property(_camera, "zoom", CHAT_ZOOM if _chat_open else Vector2.ONE, 0.45)
+	_camera_tween.tween_property(_camera, "zoom", CHAT_ZOOM if _chat_open else HOME_ZOOM, 0.45)
 	_camera_tween.tween_property(_camera, "position", target, 0.45)
 
 
@@ -371,17 +380,17 @@ func _open_minigame() -> void:
 	_set_care_open(false)
 	if _bloopie.get("is_sleeping"):
 		_set_sleeping(false)
-	_dock.visible = false
+	_set_dock_visible(false)
 	_minigame.call("open")
 
 
 func _on_minigame_closed() -> void:
-	_dock.visible = true
+	_set_dock_visible(true)
 	_bloopie.call("stop_singing")
 
 
 func _on_minigame_finished(accuracy_percent: int) -> void:
-	_dock.visible = true
+	_set_dock_visible(true)
 	_bloopie.call("stop_singing")
 	GameState.add_vocal_result(accuracy_percent)
 	_send_message("Мы спели вместе!", {
@@ -403,7 +412,7 @@ func _on_frozen_changed(frozen: bool) -> void:
 	_environment.call("set_sleeping", frozen)
 	if frozen:
 		_minigame.visible = false
-		_dock.visible = true
+		_set_dock_visible(true)
 	else:
 		_paywall.visible = false
 		_btn_sleep.text = "Сон"

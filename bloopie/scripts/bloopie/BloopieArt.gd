@@ -17,13 +17,15 @@ const STAR := Color("#FFE9A8")
 const BODY_RX := 205.0
 const BODY_RY := 190.0 # 1.08 : 1.0
 const OUTLINE := 7.0
-const EYE_X := 80.0
+const EYE_X := 84.0
 const EYE_Y := -22.0
 
 ## Canon: exactly two upper front teeth, 25% smaller than a classic cartoon pair
 ## (40x26 -> 30x19.5), fused into one block with a single centre line.
 const TEETH_WIDTH := 30.0
 const TEETH_HEIGHT := 19.5
+
+static var _glow_texture: GradientTexture2D
 
 const CLOSED_EYES: Array[String] = ["sleepy", "laugh"]
 const OPEN_MOUTH: Array[String] = ["excited", "laugh"]
@@ -72,6 +74,23 @@ static func heart(center: Vector2, size: float) -> PackedVector2Array:
 	return points
 
 
+## Soft radial glow (white texture tinted by `color`), shared by every layer.
+static func glow(ci: CanvasItem, center: Vector2, radius: float, color: Color) -> void:
+	if _glow_texture == null:
+		var gradient := Gradient.new()
+		gradient.interpolation_mode = Gradient.GRADIENT_INTERPOLATE_CUBIC
+		gradient.set_color(0, Color(1, 1, 1, 1))
+		gradient.set_color(1, Color(1, 1, 1, 0))
+		_glow_texture = GradientTexture2D.new()
+		_glow_texture.gradient = gradient
+		_glow_texture.width = 128
+		_glow_texture.height = 128
+		_glow_texture.fill = GradientTexture2D.FILL_RADIAL
+		_glow_texture.fill_from = Vector2(0.5, 0.5)
+		_glow_texture.fill_to = Vector2(1.0, 0.5)
+	ci.draw_texture_rect(_glow_texture, Rect2(center - Vector2(radius, radius), Vector2(radius, radius) * 2.0), false, color)
+
+
 static func text(ci: CanvasItem, position: Vector2, value: String, size: int, fill: Color) -> void:
 	var font := ThemeDB.fallback_font
 	ci.draw_string_outline(font, position, value, HORIZONTAL_ALIGNMENT_LEFT, -1, size, 10, INK)
@@ -81,6 +100,7 @@ static func text(ci: CanvasItem, position: Vector2, value: String, size: int, fi
 # --- Body layers --------------------------------------------------------------------
 
 static func draw_shadow(ci: CanvasItem, _s: Dictionary) -> void:
+	glow(ci, Vector2(0, BODY_RY + 6.0), 230.0, Color(INK, 0.35))
 	ci.draw_colored_polygon(ellipse(Vector2(0, BODY_RY + 6.0), 196.0, 30.0, 32), Color(INK, 0.3))
 
 
@@ -104,9 +124,16 @@ static func draw_body(ci: CanvasItem, s: Dictionary) -> void:
 	var base: Color = s.palette.base
 	var shade: Color = s.palette.shade
 	var silhouette := ellipse(Vector2.ZERO, BODY_RX, BODY_RY, 64)
+	# Soft plush volume: stacked tones from the shadow rim up to the lit crown.
 	ci.draw_colored_polygon(silhouette, shade)
-	ci.draw_colored_polygon(ellipse(Vector2(-8, -14), 189.0, 171.0, 64), base)
-	ci.draw_colored_polygon(ellipse(Vector2(-78, -102), 66.0, 36.0, 28, -0.55), Color(base.lightened(0.35), 0.6))
+	ci.draw_colored_polygon(ellipse(Vector2(-4, -8), 197.0, 180.0, 64), shade.lerp(base, 0.5))
+	ci.draw_colored_polygon(ellipse(Vector2(-9, -16), 187.0, 168.0, 64), base)
+	ci.draw_colored_polygon(ellipse(Vector2(-26, -40), 150.0, 126.0, 56), base.lightened(0.07))
+	ci.draw_colored_polygon(ellipse(Vector2(-44, -64), 104.0, 82.0, 48), base.lightened(0.14))
+	ci.draw_colored_polygon(ellipse(Vector2(0, 104), 112.0, 62.0, 40), Color(base.lightened(0.2), 0.45))
+	glow(ci, Vector2(-70, -92), 120.0, Color(1, 1, 1, 0.5))
+	ci.draw_colored_polygon(ellipse(Vector2(-84, -110), 54.0, 26.0, 28, -0.55), Color(1, 1, 1, 0.55))
+	ci.draw_circle(Vector2(-128, -70), 9.0, Color(1, 1, 1, 0.5))
 	if s.theme_id == "night":
 		var belly_stars := [Vector3(-60, 118, 13), Vector3(4, 136, 9), Vector3(58, 112, 11), Vector3(-14, 100, 7), Vector3(96, 78, 7)]
 		for star: Vector3 in belly_stars:
@@ -119,10 +146,10 @@ static func draw_body(ci: CanvasItem, s: Dictionary) -> void:
 static func draw_curl(ci: CanvasItem, s: Dictionary) -> void:
 	var base: Color = s.palette.base
 	var shade: Color = s.palette.shade
-	var size: float = [0.78, 1.0, 1.2][s.stage - 1]
-	var thickness: float = [0.82, 1.0, 1.22][s.stage - 1]
-	var center := Vector2(16, -58) * size
-	var outer_radius := 56.0 * size
+	var size: float = [0.9, 1.05, 1.2][s.stage - 1]
+	var thickness: float = [0.9, 1.0, 1.15][s.stage - 1]
+	var center := Vector2(18, -64) * size
+	var outer_radius := 60.0 * size
 	var inner_radius := 9.0 * size
 	var start_angle := PI * 0.62
 	var start := center + Vector2.from_angle(start_angle) * outer_radius
@@ -131,13 +158,13 @@ static func draw_curl(ci: CanvasItem, s: Dictionary) -> void:
 	for i in 8:
 		var t := i / 8.0
 		var position := Vector2(0, 26).lerp(start, t)
-		beads.push_back(Vector3(position.x, position.y, lerpf(24.0, 13.0 * thickness, t)))
+		beads.push_back(Vector3(position.x, position.y, lerpf(27.0, 16.0 * thickness, t)))
 	var spiral_steps := 84
 	for i in spiral_steps + 1:
 		var t := float(i) / spiral_steps
 		var angle := start_angle + t * 1.5 * TAU
 		var position := center + Vector2.from_angle(angle) * lerpf(outer_radius, inner_radius, t)
-		beads.push_back(Vector3(position.x, position.y, lerpf(13.0, 6.0, t) * thickness))
+		beads.push_back(Vector3(position.x, position.y, lerpf(16.0, 7.0, t) * thickness))
 	for bead in beads:
 		ci.draw_circle(Vector2(bead.x, bead.y), bead.z + OUTLINE * 0.6, INK)
 	for bead in beads:
@@ -201,8 +228,8 @@ static func _draw_closed_eye(ci: CanvasItem, center: Vector2, side: float, smili
 
 static func _draw_open_eye(ci: CanvasItem, s: Dictionary, center: Vector2, side: float) -> void:
 	var expression: String = s.expression
-	var rx := 50.0
-	var ry := 64.0
+	var rx := 54.0
+	var ry := 68.0
 	var iris_scale := 1.0
 	var lid := 0.0
 	var gaze := Vector2.ZERO
@@ -326,7 +353,7 @@ static func draw_blush(ci: CanvasItem, s: Dictionary) -> void:
 		"sad":
 			alpha = 0.5
 	for side: float in [-1.0, 1.0]:
-		var center := Vector2(side * 134.0, 46.0)
+		var center := Vector2(side * 146.0, 60.0)
 		ci.draw_colored_polygon(ellipse(center, 36.0 * grow, 21.0 * grow, 24), Color(BLUSH, alpha))
 		for i in range(-1, 2):
 			var x := center.x + i * 13.0
@@ -336,7 +363,7 @@ static func draw_blush(ci: CanvasItem, s: Dictionary) -> void:
 static func draw_mouth(ci: CanvasItem, s: Dictionary) -> void:
 	var expression: String = "sleepy" if s.sleeping else s.expression
 	var talk: float = s.talk
-	var center := Vector2(0, 58)
+	var center := Vector2(0, 66)
 	var teeth_top := center + Vector2(0, 11)
 	if talk > 0.12 or OPEN_MOUTH.has(expression):
 		var openness := maxf(talk, 0.75 if OPEN_MOUTH.has(expression) else 0.0)
@@ -486,7 +513,7 @@ static func draw_decor(ci: CanvasItem, s: Dictionary) -> void:
 				ci.draw_circle(puff + Vector2(side * 16.0, -8.0), 10.0, Color(1, 1, 1, 0.4))
 		"proud":
 			var pulse := 0.35 + 0.2 * sin(t * 2.6)
-			outline(ci, ellipse(Vector2.ZERO, BODY_RX + 30.0, BODY_RY + 30.0, 48), 12.0, Color(RIM_LIGHT, pulse))
+			glow(ci, Vector2.ZERO, 340.0, Color(RIM_LIGHT, pulse))
 			for i in 5:
 				var angle := t * 0.6 + i * TAU / 5.0
 				star4(ci, Vector2(cos(angle) * 258.0, sin(angle) * 240.0), 13.0, Color(STAR, 0.9), -t)
@@ -497,7 +524,7 @@ static func draw_decor(ci: CanvasItem, s: Dictionary) -> void:
 				ci.draw_colored_polygon(heart(position, 44.0), Color(1.0, 0.44, 0.57, sin(phase * PI)))
 		"shy":
 			for side: float in [-1.0, 1.0]:
-				ci.draw_circle(Vector2(side * 134.0, 46.0), 46.0, Color(BLUSH, 0.14 + 0.06 * sin(t * 3.0)))
+				glow(ci, Vector2(side * 146.0, 60.0), 90.0, Color(BLUSH, 0.45 + 0.15 * sin(t * 3.0)))
 
 
 static func draw_ball(ci: CanvasItem, _s: Dictionary) -> void:

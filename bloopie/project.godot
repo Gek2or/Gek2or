@@ -42,6 +42,7 @@ window/handheld/orientation=1
 [gui]
 
 theme/default_font_size=38
+theme/custom_font="res://art/fonts/ui_font.tres"
 
 [input_devices]
 

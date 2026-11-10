@@ -151,7 +151,10 @@ func _draw_polaroid_string() -> void:
 
 func _draw_sill() -> void:
 	draw_rect(Rect2(-400, SILL_TOP, 1880, SILL_FRONT - SILL_TOP), WOOD_LIGHT)
-	draw_rect(Rect2(-400, SILL_FRONT, 1880, 1200), WOOD)
+	# The wall under the sill fades into the shadow of the room.
+	var wall := PackedVector2Array([Vector2(-400, SILL_FRONT), Vector2(1480, SILL_FRONT), Vector2(1480, 2700), Vector2(-400, 2700)])
+	var deep := Color("#2A1B3D")
+	draw_polygon(wall, PackedColorArray([WOOD, WOOD, deep, deep]))
 	draw_rect(Rect2(-400, SILL_FRONT, 1880, 30), WOOD_DARK)
 	draw_line(Vector2(-400, SILL_TOP), Vector2(1480, SILL_TOP), INK, 7.0)
 	draw_line(Vector2(-400, SILL_FRONT), Vector2(1480, SILL_FRONT), INK, 7.0)
@@ -165,6 +168,7 @@ func _draw_sill() -> void:
 
 func _draw_cushion() -> void:
 	var center := Vector2(540, 1312)
+	BloopieArt.glow(self, center + Vector2(0, 40), 460.0, Color(INK, 0.4))
 	var outer := BloopieArt.ellipse(center, 336.0, 108.0, 56)
 	draw_colored_polygon(BloopieArt.ellipse(center + Vector2(0, 26), 344.0, 104.0, 40), Color(INK, 0.22))
 	draw_colored_polygon(outer, CUSHION_SHADE)
@@ -202,8 +206,7 @@ func _draw_supporter_props() -> void:
 		draw_arc(cat + Vector2(-50 + i * 34.0, -34), 16.0, PI * 1.15, PI * 1.85, 8, Color("#D97C2B"), 6.0, true)
 	# Table lamp on the right.
 	var lamp := Vector2(1010, 1300)
-	draw_circle(lamp + Vector2(-10, -250), 230.0, Color(1.0, 0.82, 0.46, 0.05))
-	draw_circle(lamp + Vector2(-10, -250), 150.0, Color(1.0, 0.82, 0.46, 0.07))
+	BloopieArt.glow(self, lamp + Vector2(-10, -250), 420.0, Color(1.0, 0.8, 0.45, 0.5))
 	draw_line(lamp + Vector2(-10, -200), lamp + Vector2(-10, -20), INK, 20.0)
 	draw_line(lamp + Vector2(-10, -200), lamp + Vector2(-10, -20), Color("#C98F58"), 9.0)
 	_oval(lamp + Vector2(-10, -12), 62.0, 20.0, Color("#C98F58"))
