@@ -1,0 +1,55 @@
+extends Node2D
+## Foreground string of warm fairy lights hanging across the top of the window.
+
+const WIRE := Color("#3A2A2A")
+const GLOW := Color("#FFD175")
+const BULB := Color("#FFF1C4")
+const ANCHORS: Array[Vector2] = [Vector2(-60, 236), Vector2(350, 262), Vector2(760, 240), Vector2(1140, 228)]
+const SAG := 82.0
+const BULB_SPACING := 0.2
+const REDRAW_INTERVAL := 1.0 / 15.0
+
+## 0..1 overall glow strength, tweened by EnvironmentController.
+var brightness := 1.0
+
+var _time := 0.0
+var _redraw_clock := 0.0
+
+
+func _process(delta: float) -> void:
+	_time += delta
+	_redraw_clock -= delta
+	if _redraw_clock <= 0.0:
+		_redraw_clock = REDRAW_INTERVAL
+		queue_redraw()
+
+
+func _draw() -> void:
+	var bulb_index := 0
+	for segment in ANCHORS.size() - 1:
+		var from := ANCHORS[segment]
+		var to := ANCHORS[segment + 1]
+		var wire := PackedVector2Array()
+		for i in 25:
+			wire.push_back(_hang(from, to, i / 24.0))
+		draw_polyline(wire, WIRE, 5.0, true)
+		var t := BULB_SPACING * 0.5
+		while t < 1.0:
+			_draw_bulb(_hang(from, to, t), bulb_index)
+			bulb_index += 1
+			t += BULB_SPACING
+
+
+func _hang(from: Vector2, to: Vector2, t: float) -> Vector2:
+	return from.lerp(to, t) + Vector2(0, SAG * 4.0 * t * (1.0 - t))
+
+
+func _draw_bulb(at: Vector2, index: int) -> void:
+	var twinkle := (0.82 + 0.18 * sin(_time * 1.7 + index * 1.9)) * brightness
+	var center := at + Vector2(0, 26)
+	draw_line(at, at + Vector2(0, 12), WIRE, 6.0)
+	draw_circle(center, 74.0, Color(GLOW, 0.07 * twinkle))
+	draw_circle(center, 46.0, Color(GLOW, 0.13 * twinkle))
+	draw_circle(center, 27.0, Color(GLOW, 0.3 * twinkle))
+	draw_circle(center, 16.0, BULB.lerp(GLOW, 0.25))
+	draw_circle(center + Vector2(-4, -4), 6.0, Color(1, 1, 1, 0.9))
