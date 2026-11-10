@@ -1,5 +1,6 @@
 extends Node
-## Talks to the FastAPI backend (POST /v1/interact, Gemini Flash structured output).
+## Talks to the FastAPI backend (POST /v1/interact with a Bearer token, Gemini
+## Flash structured output).
 ## If the backend is unreachable or answers with garbage, an on-device fallback
 ## reply is produced so the game stays fully playable offline.
 
@@ -89,11 +90,14 @@ func send_message(message: String, event: Dictionary = {}) -> void:
 	request_started.emit()
 	var payload := {
 		"message": _pending_message,
+		"player_name": GameState.player_name,
 		"archetype": GameState.archetype,
 		"stats": {
-			"mood": GameState.mood,
+			"hunger": GameState.hunger,
+			"hygiene": GameState.hygiene,
 			"energy": GameState.energy,
-			"level": GameState.get_level(),
+			"mood": GameState.mood,
+			"pet_level": GameState.pet_level,
 			"vocal_level": GameState.vocal_level,
 		},
 		"recent_memories": GameState.recent_memories,
@@ -106,7 +110,10 @@ func send_message(message: String, event: Dictionary = {}) -> void:
 		return
 	var error := _http.request(
 		base_url.trim_suffix("/") + ENDPOINT,
-		PackedStringArray(["Content-Type: application/json"]),
+		PackedStringArray([
+			"Content-Type: application/json",
+			"Authorization: Bearer %s" % str(ProjectSettings.get_setting("bloopie/api_token", "")),
+		]),
 		HTTPClient.METHOD_POST,
 		JSON.stringify(payload))
 	if error != OK:

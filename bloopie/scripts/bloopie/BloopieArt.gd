@@ -105,24 +105,26 @@ static func draw_shadow(ci: CanvasItem, _s: Dictionary) -> void:
 
 
 static func draw_tufts(ci: CanvasItem, s: Dictionary) -> void:
-	var base: Color = s.palette.base
-	var shade: Color = s.palette.shade
-	var tufts := [Vector3(10, -24, 23), Vector3(24, 6, 27), Vector3(8, 34, 21)]
+	var base: Color = s.draw_palette.base
+	var shade: Color = s.draw_palette.shade
+	# x = how far the lobe sticks out, y = height on the body, z = lobe radius.
+	var tufts := [Vector3(18, -34, 30), Vector3(36, 6, 35), Vector3(16, 44, 29)]
 	if s.stage == 1:
-		tufts = [Vector3(10, -12, 22), Vector3(14, 20, 23)]
+		tufts = [Vector3(18, -16, 29), Vector3(24, 26, 30)]
 	for side: float in [-1.0, 1.0]:
-		var anchor := Vector2(side * 192.0, 30.0)
+		var anchor := Vector2(side * 190.0, 34.0)
 		for tuft: Vector3 in tufts:
 			ci.draw_circle(anchor + Vector2(tuft.x * side, tuft.y), tuft.z + OUTLINE * 0.5, INK)
 		for tuft: Vector3 in tufts:
 			var center := anchor + Vector2(tuft.x * side, tuft.y)
-			ci.draw_circle(center, tuft.z - OUTLINE * 0.5, shade)
-			ci.draw_circle(center + Vector2(-2, -4), tuft.z - OUTLINE * 0.5 - 4.0, base)
+			ci.draw_circle(center, tuft.z - OUTLINE * 0.5, shade.lerp(base, 0.35))
+			ci.draw_circle(center + Vector2(-3, -5), tuft.z - OUTLINE * 0.5 - 5.0, base)
+			ci.draw_circle(center + Vector2(-7, -10), tuft.z * 0.36, base.lightened(0.22))
 
 
 static func draw_body(ci: CanvasItem, s: Dictionary) -> void:
-	var base: Color = s.palette.base
-	var shade: Color = s.palette.shade
+	var base: Color = s.draw_palette.base
+	var shade: Color = s.draw_palette.shade
 	var silhouette := ellipse(Vector2.ZERO, BODY_RX, BODY_RY, 64)
 	# Soft plush volume: stacked tones from the shadow rim up to the lit crown.
 	ci.draw_colored_polygon(silhouette, shade)
@@ -144,53 +146,62 @@ static func draw_body(ci: CanvasItem, s: Dictionary) -> void:
 
 
 static func draw_curl(ci: CanvasItem, s: Dictionary) -> void:
-	var base: Color = s.palette.base
-	var shade: Color = s.palette.shade
-	var size: float = [0.9, 1.05, 1.2][s.stage - 1]
-	var thickness: float = [0.9, 1.0, 1.15][s.stage - 1]
-	var center := Vector2(18, -64) * size
-	var outer_radius := 60.0 * size
+	var base: Color = s.draw_palette.base
+	var shade: Color = s.draw_palette.shade
+	var size: float = [0.88, 1.0, 1.14][s.stage - 1]
+	var center := Vector2(14, -70) * size
+	var outer_radius := 62.0 * size
 	var inner_radius := 9.0 * size
-	var start_angle := PI * 0.62
-	var start := center + Vector2.from_angle(start_angle) * outer_radius
-	# x, y = position, z = tube radius. Stem first, then the 1.5-turn spiral.
+	var start_angle := PI * 0.6
+	var spiral_steps := 96
+	# x, y = position, z = tube radius. A fat stem, then a 1.5-turn spiral whose
+	# coils touch each other like a plush snail roll.
 	var beads: Array[Vector3] = []
-	for i in 8:
-		var t := i / 8.0
-		var position := Vector2(0, 26).lerp(start, t)
-		beads.push_back(Vector3(position.x, position.y, lerpf(27.0, 16.0 * thickness, t)))
-	var spiral_steps := 84
+	var start := center + Vector2.from_angle(start_angle) * outer_radius
+	for i in 10:
+		var t := i / 10.0
+		var position := Vector2(0, 30).lerp(start, t)
+		beads.push_back(Vector3(position.x, position.y, lerpf(34.0, 25.0, t) * size))
 	for i in spiral_steps + 1:
 		var t := float(i) / spiral_steps
 		var angle := start_angle + t * 1.5 * TAU
 		var position := center + Vector2.from_angle(angle) * lerpf(outer_radius, inner_radius, t)
-		beads.push_back(Vector3(position.x, position.y, lerpf(16.0, 7.0, t) * thickness))
+		beads.push_back(Vector3(position.x, position.y, lerpf(25.0, 10.0, t) * size))
 	for bead in beads:
-		ci.draw_circle(Vector2(bead.x, bead.y), bead.z + OUTLINE * 0.6, INK)
+		ci.draw_circle(Vector2(bead.x, bead.y), bead.z + OUTLINE * 0.55, INK)
 	for bead in beads:
-		ci.draw_circle(Vector2(bead.x, bead.y), bead.z, base)
+		ci.draw_circle(Vector2(bead.x, bead.y), bead.z, shade.lerp(base, 0.55))
 	for bead in beads:
-		ci.draw_circle(Vector2(bead.x - bead.z * 0.3, bead.y - bead.z * 0.3), bead.z * 0.34, Color(base.lightened(0.4), 0.55))
+		ci.draw_circle(Vector2(bead.x - bead.z * 0.12, bead.y - bead.z * 0.16), bead.z * 0.82, base)
+	for bead in beads:
+		ci.draw_circle(Vector2(bead.x - bead.z * 0.3, bead.y - bead.z * 0.34), bead.z * 0.34, base.lightened(0.3))
+	# The ink crease between the coils: the outer edge of the inner turns.
+	var crease := PackedVector2Array()
+	for i in spiral_steps + 1:
+		var t := float(i) / spiral_steps
+		if t < 0.36:
+			continue
+		var angle := start_angle + t * 1.5 * TAU
+		var radius := lerpf(outer_radius, inner_radius, t) + lerpf(25.0, 10.0, t) * size
+		crease.push_back(center + Vector2.from_angle(angle) * radius)
+	ci.draw_polyline(crease, INK, 5.5, true)
 	# Seamless join with the head: repaint the body colour over the base outline.
-	ci.draw_colored_polygon(ellipse(Vector2(0, 30), 27.0, 17.0, 20), base)
-	ci.draw_circle(Vector2(18, 22), 9.0, Color(shade, 0.35))
+	ci.draw_colored_polygon(ellipse(Vector2(0, 36), 36.0 * size, 20.0, 20), base)
 	if s.theme_id == "forest":
-		var leaf_at := center + Vector2(outer_radius * 0.55, -outer_radius * 0.95)
-		blob(ci, ellipse(leaf_at, 26.0, 12.0, 16, -0.6), Color("#4FA65A"), 4.0)
-		ci.draw_line(leaf_at + Vector2(-18, 12), leaf_at + Vector2(18, -12), Color("#2F6B3A"), 3.0, true)
+		var leaf_at := center + Vector2(outer_radius * 0.9, -outer_radius * 1.25)
+		blob(ci, ellipse(leaf_at, 30.0, 14.0, 16, -0.6), Color("#3F9A4E"), 4.5)
+		ci.draw_line(leaf_at + Vector2(-20, 14), leaf_at + Vector2(20, -14), Color("#1F5A2C"), 3.5, true)
 
 
 static func draw_paws(ci: CanvasItem, s: Dictionary) -> void:
-	var base: Color = s.palette.base
-	var shade: Color = s.palette.shade
-	var paw_color := base.lerp(shade, 0.18)
+	var base: Color = s.draw_palette.base
+	var shade: Color = s.draw_palette.shade
 	for side: float in [-1.0, 1.0]:
-		var hand := ellipse(Vector2(side * 178.0, 104.0), 19.0, 30.0, 20, side * -0.55)
-		blob(ci, hand, paw_color, 6.0)
-		var foot := ellipse(Vector2(side * 88.0, 170.0), 52.0, 32.0, 28, side * -0.12)
+		var foot := ellipse(Vector2(side * 84.0, 166.0), 62.0, 42.0, 32, side * -0.2)
 		ci.draw_colored_polygon(foot, shade)
-		ci.draw_colored_polygon(ellipse(Vector2(side * 86.0, 165.0), 44.0, 25.0, 28, side * -0.12), paw_color)
-		outline(ci, foot, 6.0)
+		ci.draw_colored_polygon(ellipse(Vector2(side * 82.0, 160.0), 53.0, 33.0, 32, side * -0.2), shade.lerp(base, 0.45))
+		ci.draw_colored_polygon(ellipse(Vector2(side * 78.0, 150.0), 34.0, 17.0, 24, side * -0.2), shade.lerp(base, 0.8))
+		outline(ci, foot, 6.5)
 
 
 # --- Face ------------------------------------------------------------------------------
@@ -354,7 +365,8 @@ static func draw_blush(ci: CanvasItem, s: Dictionary) -> void:
 			alpha = 0.5
 	for side: float in [-1.0, 1.0]:
 		var center := Vector2(side * 146.0, 60.0)
-		ci.draw_colored_polygon(ellipse(center, 36.0 * grow, 21.0 * grow, 24), Color(BLUSH, alpha))
+		glow(ci, center, 74.0 * grow, Color(BLUSH, alpha * 0.75))
+		ci.draw_colored_polygon(ellipse(center, 34.0 * grow, 19.0 * grow, 24), Color(BLUSH, alpha * 0.55))
 		for i in range(-1, 2):
 			var x := center.x + i * 13.0
 			ci.draw_line(Vector2(x - 5, center.y + 8), Vector2(x + 5, center.y - 8), Color(BLUSH_HATCH, minf(1.0, alpha + 0.15)), 4.0, true)

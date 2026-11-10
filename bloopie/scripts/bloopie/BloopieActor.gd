@@ -17,12 +17,15 @@ const PET_VIBRATION_MS := 35
 const TYPE_SPEED := 30.0
 const IDLE_ACTION_MIN := 18.0
 const IDLE_ACTION_MAX := 32.0
-const BUBBLE_WIDTH := 760.0
-const BUBBLE_BOTTOM := -410.0
+const BUBBLE_WIDTH := 600.0
+const BUBBLE_BOTTOM := -436.0
+const BUBBLE_FONT_SIZE := 31
+const THEME_BLEND_SECONDS := 0.6
 
 ## Shared render state read by every BloopiePart layer.
 var state := {
 	"palette": {},
+	"draw_palette": {},
 	"theme_id": "original",
 	"hat": "none",
 	"stage": 1,
@@ -49,12 +52,17 @@ var _curl_velocity := 0.0
 var _touch_on_body := false
 var _touch_travel := 0.0
 var _swipe := 0.0
+var _sing_openness := 0.6
 var _typing := false
 var _typed := 0.0
 var _bubble_hold := 0.0
 var _idle_clock := 0.0
 var _body_tween: Tween
 var _bubble_tween: Tween
+var _bubble_sticky := false
+var _bubble_tail: Polygon2D
+var _theme_tween: Tween
+var _plush_material: ShaderMaterial
 var _sfx := {}
 var _rng := RandomNumberGenerator.new()
 
@@ -77,9 +85,14 @@ func _ready() -> void:
 	_rng.randomize()
 	_idle_clock = _rng.randf_range(IDLE_ACTION_MIN, IDLE_ACTION_MAX)
 	state.palette = GameState.get_palette()
-	state.theme_id = GameState.theme_id
-	state.hat = GameState.hat_id
+	# Plush layers are always painted in the original ramp; palette_swap.gdshader
+	# recolours them to the current theme.
+	state.draw_palette = GameState.THEMES["original"]
+	state.theme_id = GameState.current_theme
+	state.hat = GameState.current_hat
 	state.stage = GameState.get_growth_stage()
+	_plush_material = ($VisualRoot/BodyBase as CanvasItem).material as ShaderMaterial
+	_set_plush_colors(state.palette.base, state.palette.shade)
 	for layer: Node in [$VisualRoot/DropShadow, $VisualRoot/BackTufts, $VisualRoot/BodyBase,
 			_curl, $VisualRoot/FrontPaws, _hat, _decor, _ball, _capsule]:
 		layer.set("state", state)
@@ -114,6 +127,7 @@ func say(text: String, emotion: String = "happy") -> void:
 		return
 	if is_sleeping:
 		wake_up()
+	_bubble_sticky = false
 	show_emotion(emotion, maxf(4.0, text.length() / TYPE_SPEED + 3.0))
 	_open_bubble(text)
 	_typing = true
@@ -125,6 +139,7 @@ func say(text: String, emotion: String = "happy") -> void:
 func show_thinking() -> void:
 	if GameState.is_frozen:
 		return
+	_bubble_sticky = false
 	show_emotion("curious", 20.0)
 	_open_bubble("...")
 	_typing = false
@@ -142,7 +157,8 @@ func fall_asleep() -> void:
 	_stop_body_tween()
 	is_sleeping = true
 	state.sleeping = true
-	_hide_bubble()
+	if not _bubble_sticky:
+		_hide_bubble()
 	_redraw_all()
 	_body_tween = create_tween().set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
 	_body_tween.tween_property(self, "_squash", Vector2(1.1, 0.84), 0.9)
@@ -175,10 +191,11 @@ func play_body_animation(animation: String) -> void:
 			_animate_play()
 
 
-func start_singing(frequency_hz: float) -> void:
+## `pitch` is 0..1 (low..high). High notes are the one moment Bloopie opens
+## his mouth wide; the two-tooth block stays in place on the upper lip.
+func start_singing(frequency_hz: float, pitch: float) -> void:
 	_voice.call("sing", frequency_hz)
-	state.talk = 0.9
-	_face.call("redraw")
+	_sing_openness = lerpf(0.35, 1.0, clampf(pitch, 0.0, 1.0))
 
 
 func stop_singing() -> void:
@@ -239,12 +256,12 @@ func _update_speech(delta: float) -> void:
 		if now >= total:
 			_typing = false
 			speech_finished.emit()
-	elif _bubble.visible and _bubble_hold > 0.0:
+	elif _bubble.visible and _bubble_hold > 0.0 and not _bubble_sticky:
 		_bubble_hold -= delta
 		if _bubble_hold <= 0.0:
 			_hide_bubble()
 	if _voice.call("is_singing"):
-		talk_target = 0.7 + 0.2 * sin(state.time * 6.0)
+		talk_target = _sing_openness
 	if not is_equal_approx(state.talk, talk_target):
 		state.talk = move_toward(state.talk, talk_target, delta * 9.0)
 		_face.call("redraw")
@@ -315,11 +332,11 @@ func _to_world(canvas_position: Vector2) -> Vector2:
 
 
 func _is_on_body(world: Vector2) -> bool:
-	return world.distance_to(global_position) <= BODY_RADIUS * GameState.get_growth_scale() + 20.0
+	return world.distance_to(global_position) <= (BODY_RADIUS * GameState.get_growth_scale() + 20.0) * global_scale.x
 
 
 func _look_at(world: Vector2) -> void:
-	_face.call("look_at_pointer", (world - global_position) / 420.0)
+	_face.call("look_at_pointer", (world - global_position) / (420.0 * global_scale.x))
 
 
 func _on_tap() -> void:
@@ -443,6 +460,7 @@ func _open_bubble(text: String) -> void:
 	_bubble.size = Vector2(BUBBLE_WIDTH, 0)
 	_bubble.size = _bubble.get_combined_minimum_size()
 	_bubble.position = Vector2(-_bubble.size.x * 0.5, BUBBLE_BOTTOM - _bubble.size.y)
+	_bubble_tail.position = Vector2(_bubble.size.x * 0.5, _bubble.size.y - 2.0)
 	_bubble.pivot_offset = Vector2(_bubble.size.x * 0.5, _bubble.size.y)
 	_bubble.scale = Vector2(0.85, 0.85)
 	_bubble_tween = create_tween()
@@ -462,16 +480,20 @@ func _hide_bubble() -> void:
 
 func _style_bubble() -> void:
 	var box := StyleBoxFlat.new()
-	box.bg_color = Color("#FFFDF9")
-	box.set_corner_radius_all(44)
+	box.bg_color = Color(1.0, 0.99, 0.97, 0.93)
+	box.set_corner_radius_all(40)
 	box.shadow_color = Color(0.05, 0.04, 0.14, 0.35)
 	box.shadow_size = 22
 	box.shadow_offset = Vector2(0, 10)
 	box.anti_aliasing_size = 1.5
 	_bubble.add_theme_stylebox_override("panel", box)
 	_reply.add_theme_color_override("font_color", BloopieArt.INK)
-	_reply.add_theme_font_size_override("font_size", 40)
+	_reply.add_theme_font_size_override("font_size", BUBBLE_FONT_SIZE)
 	_reply.custom_minimum_size.x = BUBBLE_WIDTH - 88.0
+	_bubble_tail = Polygon2D.new()
+	_bubble_tail.polygon = PackedVector2Array([Vector2(-22, 0), Vector2(22, 0), Vector2(0, 26)])
+	_bubble_tail.color = box.bg_color
+	_bubble.add_child(_bubble_tail)
 
 
 # --- State changes ---------------------------------------------------------------------------
@@ -498,10 +520,25 @@ func _apply_hat() -> void:
 
 
 func _on_theme_changed(theme_id: String) -> void:
+	var from_base: Color = state.palette.base
+	var from_shade: Color = state.palette.shade
 	state.palette = GameState.get_palette()
 	state.theme_id = theme_id
 	_redraw_all()
 	_boop(Vector2(1.1, 0.9))
+	# Cross-fade the plush colour instead of snapping to the new theme.
+	var to_base: Color = state.palette.base
+	var to_shade: Color = state.palette.shade
+	if _theme_tween != null and _theme_tween.is_valid():
+		_theme_tween.kill()
+	_theme_tween = create_tween()
+	_theme_tween.tween_method(func(t: float) -> void:
+		_set_plush_colors(from_base.lerp(to_base, t), from_shade.lerp(to_shade, t)), 0.0, 1.0, THEME_BLEND_SECONDS)
+
+
+func _set_plush_colors(base: Color, shade: Color) -> void:
+	_plush_material.set_shader_parameter("target_base", base)
+	_plush_material.set_shader_parameter("target_shade", shade)
 
 
 func _on_hat_changed(hat_id: String) -> void:
@@ -522,8 +559,15 @@ func _on_frozen_changed(frozen: bool) -> void:
 	_cryo_light.enabled = frozen
 	if frozen:
 		fall_asleep()
-	elif is_sleeping:
-		wake_up()
+		_bubble_sticky = true
+		_typing = false
+		_open_bubble("14 дней пробного периода прошли.\nБлупи в стазисе")
+		_reply.visible_characters = -1
+	else:
+		_bubble_sticky = false
+		_hide_bubble()
+		if is_sleeping:
+			wake_up()
 
 
 # --- Generated resources ----------------------------------------------------------------------
