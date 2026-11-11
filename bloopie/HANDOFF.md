@@ -3,16 +3,13 @@
 Этот файл самодостаточен: его можно отдать новому ассистенту вместе с архивом
 `bloopie-project.zip` или репозиторием `gek2or/gek2or` (ветка `ccr-4de81cc6-9tmkl3`).
 
-## 1. Где что лежит
+## 1. Состояние
 
-| Что | Где |
-| --- | --- |
-| Рабочая версия игры (запускается, проверена) | коммит `37ae052`; в архиве — папка `bloopie/` |
-| Тестовый APK этой версии | `bloopie-debug.apk` в архиве (в git его нет) |
-| Незаконченный переход на спецификацию v02 | коммит `e97b5a5` (голова ветки); в архиве — `WIP_spec_v02.patch` |
+Переход на спецификацию v02 в части Godot завершён: голова ветки запускается, проверена
+скриншотами всех экранов и автоматическим прогоном сценариев (тап, поглаживание, какао,
+покупка шапочки, награда за вокал, сохранение). APK собирается командой из раздела 2.
 
-**Голова ветки сейчас не запускается.** Чтобы получить рабочую игру, берите `37ae052`.
-Чтобы продолжать переход на v02 — работайте от `e97b5a5`.
+Не сделано: бэкенд FastAPI + Gemini, реальный биллинг, локализация, растровый арт.
 
 ## 2. Проект
 
@@ -32,7 +29,7 @@ bloopie/
   scripts/environment/ EnvironmentController, RoomArt, FairyLightsDrawer
   scripts/ui/         UIStyle, CareDrawer, VocalMinigame, MemoryAlbum, Onboarding
   scripts/MainRoom.gd
-  shaders/            rain_window.gdshader, palette_swap.gdshader (только в WIP)
+  shaders/            rain_window.gdshader, palette_swap.gdshader
 ```
 
 ### Как устроен рендер Блупи
@@ -51,7 +48,7 @@ bloopie/
 ```
 godot --headless --path bloopie --import          # импорт ассетов
 godot --headless --path bloopie --quit-after 120  # дымовой запуск, ошибок быть не должно
-xvfb-run -a godot --path bloopie --rendering-driver opengl3 -s <скрипт.gd>   # скриншоты
+xvfb-run -a godot --path bloopie --rendering-method gl_compatibility --rendering-driver opengl3 -s <скрипт.gd>   # скриншоты
 ```
 
 Скрипт для скриншотов наследует `SceneTree`, загружает `MainRoom.tscn`, вызывает методы
@@ -79,62 +76,39 @@ godot --headless --path bloopie --export-debug "Android" build/bloopie-debug.apk
   допустим только на высокой ноте в вокальной игре.
 - Подушка крупной вязки `#E6B39A`.
 
-## 4. Спецификация v02: что уже сделано (коммит `e97b5a5`)
+## 4. Что есть в игре (v02)
 
-| Файл | Состояние |
-| --- | --- |
-| `autoload/GameState.gd` | Готов. Сохранение в `user://bloopie_save_v02.json`. Новые поля и API — см. таблицу ниже. |
-| `autoload/TimeWeatherSystem.gd` | Готов. `current_time_of_day` (evening/sunset/night), `current_weather` (rain/stars), сигнал `environment_updated(time_of_day, weather)`. |
-| `autoload/AIClient.gd` | Готов. Заголовок `Authorization: Bearer <bloopie/api_token>`, в запросе `player_name`, `hunger`, `hygiene`, `pet_level`. |
-| `autoload/MemoryManager.gd` | Готов. `register_camera(hud, flash)` и `take_polaroid(caption, focus, side)`; карточки пишутся в `GameState.album_cards`. |
-| `shaders/palette_swap.gdshader` | Готов, к сцене не подключён. |
-| `bloopie/BloopieArt.gd` | Готов. Толстый завиток-улитка, пышные хохолки, крупные лапки, ручки убраны. Плюшевые слои читают `state.draw_palette`. |
-| `bloopie/BloopieActor.gd` | Готов. Ждёт материал `palette_swap` на `VisualRoot/BodyBase`; кросс-фейд темы, хвостик пузыря, постоянный пузырь стазиса, `start_singing(freq, pitch)`. |
-
-### Переименования, которые ломают остальные скрипты
-
-| Было | Стало |
-| --- | --- |
-| `GameState.get_level()` | `GameState.pet_level` |
-| `GameState.theme_id` / `hat_id` | `GameState.current_theme` / `current_hat` |
-| `GameState.has_cozy_pass`, `grant_cozy_pass()` | `has_active_subscription`, `activate_subscription()` |
-| `GameState.cycle_hat()`, `next_locked_hat()` | `next_hat()`, `is_hat_unlocked()`, `is_hat_owned()`, `buy_hat()` |
-| `GameState.hatch(archetype)` | `hatch(archetype, player_name)` |
-| `TimeWeatherSystem.atmosphere_changed` | `environment_updated(time_of_day, weather)` |
-| `TimeWeatherSystem.get_window_mode()`, `time_of_day` | `current_time_of_day`; для приветствий — `get_day_part()` |
-| `MemoryManager.entries`, `capture()` | `GameState.album_cards`, `take_polaroid()` |
-| поля карточки `file`, `unix` | `image_path`, `timestamp`, `date_string` |
-| `BloopieActor.start_singing(freq)` | `start_singing(freq, pitch)` — сигнал мини-игры должен отдавать и высоту 0..1 |
-
-Новое в `GameState`: `hunger`, `hygiene` (медленно снижаются, но не ниже 35 — без наказаний),
-`coins` (старт 120, ежедневный подарок 20, +25 за уровень), `feed()`, `wash()`,
-`spend_coins()`, `get_happiness()`, `claim_daily_gift()`, `owned_hats`.
-Цены шапочек: cosy 50, cat 120, frog 200, wizard 350 (плюс пороги уровня 1 / 5 / 10 / 20).
+- **GameState** (`user://bloopie_save_v02.json`): `player_name`, `archetype`, `current_theme`,
+  `current_hat`, `owned_hats`, `has_active_subscription`, `is_frozen`, `hunger`, `hygiene`,
+  `energy`, `mood`, `vocal_level` (1–99), `affection_xp`, `pet_level` (1–20), `coins`,
+  `recent_memories` (кольцо на 7), `album_cards` (`timestamp`, `date_string`, `caption`, `image_path`).
+- **Без наказаний:** `hunger` и `hygiene` медленно снижаются, но не ниже 35; настроение не падает.
+- **Монеты:** старт 120, подарок дня 20, +25 за уровень, за вокал `5 + точность / 5`.
+  Какао 5, тарт 10. Шапочки: cosy 50, cat 120 (Lv.5), frog 200 (Lv.10), wizard 350 (Lv.20);
+  первая кнопка предлагает цену, вторая покупает.
+- **TimeWeatherSystem:** `current_time_of_day` (evening / sunset / night), `current_weather`
+  (rain / stars), сигнал `environment_updated`. У исследователя окно всегда в звёздную ночь.
+- **AIClient:** `Authorization: Bearer <bloopie/api_token>`, офлайн-ответы при любой ошибке.
+- **MemoryManager:** `take_polaroid()` прячет HUD на кадр, снимает, даёт вспышку, пишет PNG и карточку.
+- **Перекраска:** плюшевые слои рисуются в палитре `original`, тему задаёт `palette_swap.gdshader`
+  (параметры `target_base` / `target_shade`, плавный переход 0.6 с).
+- **Кадр:** `BloopieActor.scale = 1.5`, камера `(540, 960)`; чат — zoom 1.18 в `(540, 900)`;
+  панель заботы — zoom 0.86 в `(540, 1130)`. Пузырь речи ужат до 0.75, чтобы текст остался UI-размера.
+- **HUD:** плашки уровня и монет, шкала настроения, кнопка альбома; кремовый док на белой
+  полупрозрачной рамке; панель заботы со шкалой «Счастье»; альбом 2×2 с пагинацией;
+  вокальная игра с бирюзовой волной и нотными кольцами (палец в любой точке экрана,
+  зона управления — от 30% до 82% высоты); в стазисе док заменяет кнопка
+  «Разбудить Блупи (Cozy Pass)».
 
 ## 5. Что осталось сделать
 
-1. **Скрипты на старом API:** `MainRoom.gd`, `ui/CareDrawer.gd`, `ui/MemoryAlbum.gd`,
-   `ui/Onboarding.gd`, `environment/EnvironmentController.gd` — перевести на таблицу выше.
-   В `EnvironmentController` звёзды и дождь брать из `get_star_amount()` / `get_rain_intensity()`.
-2. **`MainRoom.tscn`:**
-   - общий `ShaderMaterial` с `palette_swap.gdshader` на `BodyBase`, `BackTufts`, `TopCurl`, `FrontPaws`;
-   - `BloopieActor.scale = (1.5, 1.5)` — Блупи должен занимать около 58% ширины, как на макетах;
-   - `Camera2D` в `(540, 960)`, zoom 1; в чате 1.18;
-   - `TopBar`: `LevelPill`, `CoinsPill`, `MoodBar`, `AlbumButton`;
-   - `PaywallModal → WakeUpButton` «Разбудить Блупи (Cozy Pass)», виден всё время стазиса.
-3. **`RoomArt.gd`:** подоконник ниже (`SILL_TOP ≈ 1330`, `SILL_FRONT ≈ 1600`), подушка
-   `#E6B39A` с центром около `(540, 1420)` и полуосями `500 × 150`, задняя подушка слева,
-   кот / книги с кружкой / утка / кристаллы — перед подушкой. Гирлянду поднять к `y ≈ 250`.
-4. **HUD по макетам:** кремовые плашки и док на полупрозрачной белой рамке; шкала
-   «Счастье N%» в панели заботы; какао 5 монет, тарт 10; альбом 2×2 с пагинацией «1 / 3»
-   и кнопкой «Назад»; в вокальной игре — бирюзовая неоновая волна с цветными нотными
-   кольцами в верхней трети экрана, плашки «Вокал Lv.N» и «Точность N%».
-5. **Онбординг:** поле имени игрока.
-6. **`project.godot` / `export_presets.cfg`:** aspect `expand`, окно 540×960,
-   renderer `mobile`, `bloopie/api_token`, пакет `com.cozyai.bloopie`, только `arm64-v8a`.
-7. **Бэкенд FastAPI + Gemini 2.5 Flash** — не начат. Контракт ответа: `reply_text`,
-   `emotion_animation` (одна из 12 эмоций), `stat_deltas {mood_delta, energy_delta, affection_delta}`,
-   `save_to_memory`.
+1. **Бэкенд FastAPI + Gemini 2.5 Flash.** Запрос: `message`, `player_name`, `archetype`, `stats`,
+   `recent_memories`, `context`, `event`. Ответ: `reply_text`, `emotion_animation` (одна из 12 эмоций),
+   `stat_deltas {mood_delta, energy_delta, affection_delta}`, `save_to_memory`.
+2. **Биллинг** Google Play / StoreKit вместо `GameState.request_cozy_pass_purchase()`.
+3. **Растровый арт:** слои Блупи и фоны комнат в PNG вместо процедурной отрисовки.
+4. **Проверка на телефоне:** запуск под Vulkan, вибрация, клавиатура, звук.
+5. **Локализация** (сейчас интерфейс и офлайн-реплики только на русском).
 
 ## 6. Решения и ограничения
 
@@ -143,9 +117,10 @@ godot --headless --path bloopie --export-debug "Android" build/bloopie-debug.apk
 - Погода симулируется от даты и часа, без геолокации.
 - Покупка не подключена: в debug-сборке кнопка выдаёт подписку сразу, в release сообщает,
   что покупка недоступна.
-- Renderer `mobile` требует Vulkan. В рабочей версии стоит `gl_compatibility`; при переходе
-  на `mobile` проверить запуск на реальном телефоне.
+- Renderer `mobile` требует Vulkan. В этом окружении Vulkan нет, поэтому проверка шла через
+  `--rendering-method gl_compatibility`. Если APK не стартует на телефоне, вернуть в
+  `project.godot` `renderer/rendering_method="gl_compatibility"`.
 - APK ни разу не запускался на устройстве: проверены только подпись и состав пакета.
 - Контроллы с нулевым размером отсекаются при зуме камеры — у `WindowFrameProps` задан
   размер 1080×1920 именно поэтому.
-- Сообщение со спецификацией v02 оборвалось на дереве сцены; раздел про бэкенд до меня не дошёл.
+- Сообщение со спецификацией v02 оборвалось на дереве сцены; раздел про бэкенд не дошёл.

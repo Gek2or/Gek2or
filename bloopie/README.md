@@ -1,6 +1,6 @@
 # Bloopie — your cozy AI friend
 
-Мобильная игра-компаньон на Godot 4.3 (портрет 9:16, 1080×1920, рендер GL Compatibility).
+Мобильная игра-компаньон на Godot 4.3 (портрет 9:16, 1080×1920, рендер Mobile).
 
 ## Запуск
 
@@ -33,7 +33,7 @@
 
 ## Контракт `/v1/interact`
 
-Запрос: `message`, `archetype`, `stats`, `recent_memories` (не больше 7), `context`
+Запрос с заголовком `Authorization: Bearer <bloopie/api_token>`: `message`, `player_name`, `archetype`, `stats`, `recent_memories` (не больше 7), `context`
 (время суток, погода), `event` (например, результат вокальной игры).
 
 Ответ (`BloopieAIResponse`): `reply_text`, `emotion_animation` (одна из 12 эмоций),
@@ -41,8 +41,8 @@
 
 ## Сборка APK
 
-Пресет `Android` лежит в `export_presets.cfg` (пакет `com.bloopie.cozyfriend`, arm64-v8a +
-armeabi-v7a, разрешения INTERNET и VIBRATE). Нужны шаблоны экспорта Godot 4.3 и пути к
+Пресет `Android` лежит в `export_presets.cfg` (пакет `com.cozyai.bloopie`, arm64-v8a,
+разрешения INTERNET и VIBRATE). Нужны шаблоны экспорта Godot 4.3 и пути к
 Android SDK / JDK / debug-keystore в Editor Settings → Export → Android.
 
 ```

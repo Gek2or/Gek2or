@@ -17,9 +17,11 @@ const PET_VIBRATION_MS := 35
 const TYPE_SPEED := 30.0
 const IDLE_ACTION_MIN := 18.0
 const IDLE_ACTION_MAX := 32.0
-const BUBBLE_WIDTH := 600.0
-const BUBBLE_BOTTOM := -436.0
-const BUBBLE_FONT_SIZE := 31
+const BUBBLE_WIDTH := 800.0
+const BUBBLE_BOTTOM := -404.0
+const BUBBLE_FONT_SIZE := 39
+## The actor is drawn 1.5x; the bubble is scaled back so its text stays UI-sized.
+const BUBBLE_SCALE := Vector2(0.75, 0.75)
 const THEME_BLEND_SECONDS := 0.6
 
 ## Shared render state read by every BloopiePart layer.
@@ -145,6 +147,12 @@ func show_thinking() -> void:
 	_typing = false
 	_reply.visible_characters = -1
 	_bubble_hold = 20.0
+
+
+## Closes the speech bubble at once (used when an overlay takes the stage).
+func hush() -> void:
+	if not _bubble_sticky:
+		_hide_bubble()
 
 
 func start_bubbles() -> void:
@@ -462,9 +470,9 @@ func _open_bubble(text: String) -> void:
 	_bubble.position = Vector2(-_bubble.size.x * 0.5, BUBBLE_BOTTOM - _bubble.size.y)
 	_bubble_tail.position = Vector2(_bubble.size.x * 0.5, _bubble.size.y - 2.0)
 	_bubble.pivot_offset = Vector2(_bubble.size.x * 0.5, _bubble.size.y)
-	_bubble.scale = Vector2(0.85, 0.85)
+	_bubble.scale = BUBBLE_SCALE * 0.85
 	_bubble_tween = create_tween()
-	_bubble_tween.tween_property(_bubble, "scale", Vector2.ONE, 0.28).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	_bubble_tween.tween_property(_bubble, "scale", BUBBLE_SCALE, 0.28).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 
 
 func _hide_bubble() -> void:

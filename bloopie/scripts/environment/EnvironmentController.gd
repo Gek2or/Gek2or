@@ -7,15 +7,15 @@ const BLEND_SECONDS := 1.6
 const MOODS := {
 	"evening": {
 		"sky_top": Color("#35295F"), "sky_bottom": Color("#B479A6"), "glow": Color("#FFB26B"),
-		"stars": 0.15, "room": Color(1.0, 0.95, 0.97), "lights": 1.0,
+		"room": Color(1.0, 0.95, 0.97), "lights": 1.0,
 	},
 	"sunset": {
 		"sky_top": Color("#5B4A9E"), "sky_bottom": Color("#FFA56B"), "glow": Color("#FFD27A"),
-		"stars": 0.0, "room": Color(1.0, 0.93, 0.86), "lights": 0.75,
+		"room": Color(1.0, 0.93, 0.86), "lights": 0.75,
 	},
 	"night": {
 		"sky_top": Color("#0D1230"), "sky_bottom": Color("#2A2F6E"), "glow": Color("#F2B56B"),
-		"stars": 1.0, "room": Color(0.66, 0.68, 0.92), "lights": 1.0,
+		"room": Color(0.8, 0.8, 0.96), "lights": 1.0,
 	},
 }
 
@@ -36,7 +36,7 @@ func _ready() -> void:
 	_rain_player.volume_db = -60.0
 	add_child(_rain_player)
 	_rain_player.play()
-	TimeWeatherSystem.atmosphere_changed.connect(_blend_to_current)
+	TimeWeatherSystem.environment_updated.connect(func(_time: String, _weather: String) -> void: _blend_to_current())
 	GameState.hatched_changed.connect(_on_archetype_changed)
 	_apply(_target_values())
 
@@ -52,7 +52,7 @@ func _on_archetype_changed() -> void:
 
 
 func _target_values() -> Dictionary:
-	var mood: Dictionary = MOODS[TimeWeatherSystem.get_window_mode()]
+	var mood: Dictionary = MOODS[TimeWeatherSystem.current_time_of_day]
 	var room: Color = mood.room
 	var lights: float = mood.lights
 	if _sleeping:
@@ -60,7 +60,7 @@ func _target_values() -> Dictionary:
 		lights *= 0.45
 	return {
 		"sky_top": mood.sky_top, "sky_bottom": mood.sky_bottom, "glow": mood.glow,
-		"stars": mood.stars, "room": room, "lights": lights,
+		"stars": TimeWeatherSystem.get_star_amount(), "room": room, "lights": lights,
 		"rain": TimeWeatherSystem.get_rain_intensity(),
 	}
 

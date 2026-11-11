@@ -2,22 +2,31 @@ extends Node2D
 ## Root of the game: wires the HUD to Bloopie, the AI client, the care drawer,
 ## the vocal mini-game, the polaroid album and the trial paywall.
 
-const HOME_ZOOM := Vector2(1.15, 1.15)
-const CHAT_ZOOM := HOME_ZOOM * 1.18
-const CAMERA_HOME := Vector2(540, 1010)
-const CAMERA_CHAT := Vector2(540, 1040)
-const CAMERA_CARE := Vector2(540, 1250)
+const HOME_ZOOM := Vector2.ONE
+const CHAT_ZOOM := Vector2(1.18, 1.18)
+const CAMERA_HOME := Vector2(540, 960)
+const CAMERA_CHAT := Vector2(540, 900)
+const CAMERA_CARE := Vector2(540, 1130)
+const CARE_ZOOM := Vector2(0.86, 0.86)
 const POLAROID_DELAY := 0.45
-const POLAROID_SIDE := 780.0
-const CHAT_BAR_HEIGHT := 110.0
-const CHAT_BAR_BOTTOM := 410.0
+const POLAROID_SIDE := 1000.0
+const CHAT_BAR_HEIGHT := 116.0
+const CHAT_BAR_BOTTOM := 300.0
 const QUICK_REPLIES_GAP := 20.0
-const QUICK_REPLIES_HEIGHT := 90.0
+const QUICK_REPLIES_HEIGHT := 92.0
+const COCOA_PRICE := 5
+const TART_PRICE := 10
 
 const CARE_LINES := {
 	"cocoa": ["Ммм, какао! Тёплое, как твои ладошки.", "Спасибо! Пенка осталась на носу?"],
 	"tart": ["Ягодный тарт! Чур, крошки не считаем.", "Вкуснятина. Половинку оставлю тебе."],
 	"wash": ["Пузырики! Щекотно!", "Буль-буль. Теперь я блестящий."],
+}
+const GREETINGS := {
+	"morning": "Доброе утро%s! Я занял тебе место на подушке.",
+	"day": "Привет%s! Как проходит твой день?",
+	"evening": "Добрый вечер%s. Как прошёл твой день?",
+	"night": "Тсс, уже ночь%s. Я рад, что ты рядом.",
 }
 
 var _chat_open := false
@@ -25,12 +34,18 @@ var _care_open := false
 var _camera_tween: Tween
 var _toast_tween: Tween
 var _greeted := false
+## Hat the player was just offered to buy; a second tap confirms the purchase.
+var _offered_hat := ""
 
 @onready var _environment: CanvasLayer = $EnvironmentLayer
 @onready var _bloopie: Area2D = $BloopieActor
 @onready var _camera: Camera2D = $Camera2D
 @onready var _hud: CanvasLayer = $HUD
-@onready var _level_label: Label = $HUD/TopBar/LevelLabel
+@onready var _top_bar: HBoxContainer = $HUD/TopBar
+@onready var _level_pill: PanelContainer = $HUD/TopBar/LevelPill
+@onready var _level_label: Label = $HUD/TopBar/LevelPill/Row/LevelLabel
+@onready var _coins_pill: PanelContainer = $HUD/TopBar/CoinsPill
+@onready var _coins_label: Label = $HUD/TopBar/CoinsPill/Row/CoinsLabel
 @onready var _mood_bar: ProgressBar = $HUD/TopBar/MoodBar
 @onready var _album_button: Button = $HUD/TopBar/AlbumButton
 @onready var _quick_replies: HBoxContainer = $HUD/QuickReplies
@@ -38,6 +53,7 @@ var _greeted := false
 @onready var _message_input: LineEdit = $HUD/ChatBar/MessageInput
 @onready var _send_button: Button = $HUD/ChatBar/SendButton
 @onready var _care_drawer: PanelContainer = $HUD/CareDrawer
+@onready var _dock_panel: Panel = $HUD/DockPanel
 @onready var _dock: HBoxContainer = $HUD/BottomDock
 @onready var _btn_chat: Button = $HUD/BottomDock/BtnChat
 @onready var _btn_care: Button = $HUD/BottomDock/BtnCare
@@ -46,15 +62,15 @@ var _greeted := false
 @onready var _minigame: Control = $HUD/VocalMinigame
 @onready var _album: Control = $HUD/MemoryAlbum
 @onready var _paywall: PanelContainer = $HUD/PaywallModal
-@onready var _paywall_body: Label = $HUD/PaywallModal/Content/Body
-@onready var _unfreeze_button: Button = $HUD/PaywallModal/Content/UnfreezeButton
-@onready var _paywall_close: Button = $HUD/PaywallModal/Content/CloseButton
+@onready var _paywall_note: Label = $HUD/PaywallModal/Content/Note
+@onready var _wake_up_button: Button = $HUD/PaywallModal/Content/WakeUpButton
 @onready var _toast: Label = $HUD/Toast
 @onready var _flash: ColorRect = $HUD/CameraFlashRect
 
 
 func _ready() -> void:
 	_style_hud()
+	MemoryManager.register_camera(_hud, _flash)
 	_album_button.pressed.connect(_open_album)
 	_btn_chat.pressed.connect(_toggle_chat)
 	_btn_care.pressed.connect(_toggle_care)
@@ -69,13 +85,13 @@ func _ready() -> void:
 	_minigame.connect("pitch_released", _bloopie.stop_singing)
 	_minigame.connect("finished", _on_minigame_finished)
 	_minigame.connect("closed", _on_minigame_closed)
-	_unfreeze_button.pressed.connect(GameState.request_cozy_pass_purchase)
-	_paywall_close.pressed.connect(func() -> void: _paywall.visible = false)
+	_wake_up_button.pressed.connect(GameState.request_cozy_pass_purchase)
 
-	_bloopie.connect("frozen_tapped", _show_paywall)
 	_bloopie.connect("woke_up", _on_bloopie_woke_up)
 	AIClient.reply_received.connect(_on_reply)
+	MemoryManager.memory_saved.connect(_on_memory_saved)
 	GameState.stats_changed.connect(_refresh_top_bar)
+	GameState.coins_changed.connect(func(_coins: int) -> void: _refresh_top_bar())
 	GameState.level_changed.connect(_on_level_changed)
 	GameState.frozen_changed.connect(_on_frozen_changed)
 	GameState.hatched_changed.connect(_on_hatched)
@@ -103,8 +119,6 @@ func _notification(what: int) -> void:
 		# Android back button closes the top-most overlay.
 		if _album.visible:
 			_album.call("close")
-		elif _paywall.visible:
-			_paywall.visible = false
 		elif _care_open:
 			_set_care_open(false)
 		elif _chat_open:
@@ -114,38 +128,33 @@ func _notification(what: int) -> void:
 # --- HUD ------------------------------------------------------------------------------------------
 
 func _style_hud() -> void:
-	UIStyle.label(_level_label, 44, Color.WHITE)
-	_level_label.add_theme_color_override("font_outline_color", UIStyle.INK)
-	_level_label.add_theme_constant_override("outline_size", 12)
+	_level_pill.add_theme_stylebox_override("panel", UIStyle.pill())
+	_coins_pill.add_theme_stylebox_override("panel", UIStyle.pill())
+	UIStyle.label(_level_label, 44)
+	UIStyle.label(_coins_label, 44)
 	UIStyle.progress_bar(_mood_bar, Color("#FF8FA3"))
-	UIStyle.button(_album_button, UIStyle.CREAM, 44)
-	UIStyle.button(_btn_chat, UIStyle.SKY)
-	UIStyle.button(_btn_care, UIStyle.ROSE)
-	UIStyle.button(_btn_play, UIStyle.LILAC)
-	UIStyle.button(_btn_sleep, UIStyle.BUTTER)
+	UIStyle.button(_album_button, Color(1.0, 0.97, 0.93, 0.94), 48)
+	_dock_panel.add_theme_stylebox_override("panel", UIStyle.frame(64))
 	for button: Button in _dock.get_children():
-		button.add_theme_font_size_override("font_size", 32)
-		button.add_theme_constant_override("icon_max_width", 76)
+		UIStyle.tile(button)
 	UIStyle.line_edit(_message_input)
-	UIStyle.button(_send_button, UIStyle.SKY, 55)
+	UIStyle.button(_send_button, UIStyle.SKY, 58)
 	for chip: Button in _quick_replies.get_children():
-		UIStyle.button(chip, UIStyle.CREAM, 45)
-		chip.add_theme_font_size_override("font_size", 30)
-	_paywall.add_theme_stylebox_override("panel", UIStyle.card(UIStyle.CREAM, 56))
-	UIStyle.label($HUD/PaywallModal/Content/Title, 52)
-	UIStyle.label(_paywall_body, 34, Color(UIStyle.INK, 0.8))
-	UIStyle.button(_unfreeze_button, UIStyle.BUTTER)
-	UIStyle.button(_paywall_close, UIStyle.SKY)
+		UIStyle.button(chip, Color(1.0, 0.97, 0.93, 0.96), 46, 31)
+	_paywall.add_theme_stylebox_override("panel", StyleBoxEmpty.new())
+	UIStyle.ice_button(_wake_up_button)
+	UIStyle.label(_paywall_note, 32, Color.WHITE)
+	_paywall_note.add_theme_color_override("font_outline_color", Color(UIStyle.INK, 0.85))
+	_paywall_note.add_theme_constant_override("outline_size", 10)
 	UIStyle.label(_toast, 34, Color.WHITE)
 	_toast.add_theme_stylebox_override("normal", UIStyle.glass(40))
-	$HUD/TopPanel.add_theme_stylebox_override("panel", UIStyle.glass(60))
-	$HUD/DockPanel.add_theme_stylebox_override("panel", UIStyle.glass(64))
 	_toast.visible = false
 	_flash.visible = false
 
 
 func _refresh_top_bar() -> void:
-	_level_label.text = "Lv.%d" % GameState.get_level()
+	_level_label.text = "Lv.%d" % GameState.pet_level
+	_coins_label.text = str(GameState.coins)
 	_mood_bar.value = GameState.mood
 
 
@@ -159,7 +168,7 @@ func _set_hud_enabled(enabled: bool) -> void:
 
 func _set_dock_visible(shown: bool) -> void:
 	_dock.visible = shown
-	$HUD/DockPanel.visible = shown
+	_dock_panel.visible = shown
 
 
 func _show_toast(text: String) -> void:
@@ -186,17 +195,34 @@ func _greet() -> void:
 	if _greeted or GameState.is_frozen:
 		return
 	_greeted = true
-	var greetings := {
-		"morning": "Доброе утро! Я занял тебе место на подушке.",
-		"day": "Привет! Хорошо, что ты заглянул.",
-		"sunset": "Смотри, какой закат. Посидим вместе?",
-		"evening": "Добрый вечер. За окном шуршит дождь, а у нас тепло.",
-		"night": "Тсс, уже ночь. Я рад, что ты рядом.",
-	}
+	var address := "" if GameState.player_name.is_empty() else ", " + GameState.player_name
 	await get_tree().create_timer(0.8).timeout
-	_bloopie.call("say", greetings[TimeWeatherSystem.time_of_day], "happy")
-	if not GameState.has_cozy_pass:
+	_bloopie.call("say", GREETINGS[TimeWeatherSystem.get_day_part()] % address, "happy")
+	var gift := GameState.claim_daily_gift()
+	if gift > 0:
+		_show_toast("Подарок дня: +%d монет" % gift)
+	elif not GameState.has_active_subscription:
 		_show_toast("Пробный период: ещё %d дн." % GameState.trial_days_left())
+
+
+# --- Camera ---------------------------------------------------------------------------------------
+
+## Chat zooms in on Bloopie; the care drawer pulls the view back and up so he
+## stays visible above it.
+func _frame_camera() -> void:
+	var target := CAMERA_HOME
+	var zoom := HOME_ZOOM
+	if _chat_open:
+		target = CAMERA_CHAT
+		zoom = CHAT_ZOOM
+	elif _care_open:
+		target = CAMERA_CARE
+		zoom = CARE_ZOOM
+	if _camera_tween != null and _camera_tween.is_valid():
+		_camera_tween.kill()
+	_camera_tween = create_tween().set_parallel().set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	_camera_tween.tween_property(_camera, "zoom", zoom, 0.45)
+	_camera_tween.tween_property(_camera, "position", target, 0.45)
 
 
 # --- Chat -----------------------------------------------------------------------------------------
@@ -220,26 +246,6 @@ func _set_chat_open(open: bool) -> void:
 	_frame_camera()
 
 
-## Chat zooms in on Bloopie; the care drawer slides the view up so he stays visible.
-func _frame_camera() -> void:
-	var target := CAMERA_HOME
-	if _chat_open:
-		target = CAMERA_CHAT
-	elif _care_open:
-		target = CAMERA_CARE
-	if _camera_tween != null and _camera_tween.is_valid():
-		_camera_tween.kill()
-	_camera_tween = create_tween().set_parallel().set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
-	_camera_tween.tween_property(_camera, "zoom", CHAT_ZOOM if _chat_open else HOME_ZOOM, 0.45)
-	_camera_tween.tween_property(_camera, "position", target, 0.45)
-
-
-func _set_care_open(open: bool) -> void:
-	_care_open = open
-	_care_drawer.call("open" if open else "close")
-	_frame_camera()
-
-
 ## Keeps the input row and quick replies above the on-screen keyboard.
 func _lift_chat_above_keyboard() -> void:
 	if not DisplayServer.has_feature(DisplayServer.FEATURE_VIRTUAL_KEYBOARD):
@@ -247,11 +253,11 @@ func _lift_chat_above_keyboard() -> void:
 	var keyboard_pixels := DisplayServer.virtual_keyboard_get_height()
 	var window_height := maxf(float(get_window().size.y), 1.0)
 	var keyboard := keyboard_pixels * get_viewport_rect().size.y / window_height
-	_place_chat(maxf(0.0, keyboard + 24.0 - (CHAT_BAR_BOTTOM - CHAT_BAR_HEIGHT)))
+	_place_chat(maxf(0.0, keyboard + 24.0 - CHAT_BAR_BOTTOM))
 
 
 func _place_chat(lift: float) -> void:
-	_chat_bar.offset_bottom = -(CHAT_BAR_BOTTOM - CHAT_BAR_HEIGHT) - lift
+	_chat_bar.offset_bottom = -CHAT_BAR_BOTTOM - lift
 	_chat_bar.offset_top = _chat_bar.offset_bottom - CHAT_BAR_HEIGHT
 	_quick_replies.offset_bottom = _chat_bar.offset_top - QUICK_REPLIES_GAP
 	_quick_replies.offset_top = _quick_replies.offset_bottom - QUICK_REPLIES_HEIGHT
@@ -281,29 +287,19 @@ func _on_reply(response: Dictionary) -> void:
 	var memory: String = response.save_to_memory
 	if not memory.is_empty():
 		await get_tree().create_timer(POLAROID_DELAY).timeout
-		_take_polaroid(memory)
+		var focus: Vector2 = _bloopie.call("get_canvas_center")
+		MemoryManager.take_polaroid(memory, focus + Vector2(0, -40) * _camera.zoom.y, POLAROID_SIDE * _camera.zoom.x)
 
 
-# --- Polaroid camera ------------------------------------------------------------------------------
+# --- Polaroid album -------------------------------------------------------------------------------
 
-func _take_polaroid(caption: String) -> void:
-	# Hide the HUD for one frame so the photo shows only Bloopie and his room.
-	_hud.visible = false
-	await RenderingServer.frame_post_draw
-	MemoryManager.capture(get_viewport(), _bloopie.call("get_canvas_center"), POLAROID_SIDE * _camera.zoom.x, caption)
-	_hud.visible = true
+func _on_memory_saved(_card: Dictionary) -> void:
 	_bloopie.call("play_sound", "shutter")
-	_flash.visible = true
-	_flash.modulate.a = 1.0
-	var fade := create_tween()
-	fade.tween_property(_flash, "modulate:a", 0.0, 0.55)
-	fade.tween_callback(func() -> void: _flash.visible = false)
 	_show_toast("Новый снимок в альбоме")
 
 
 func _open_album() -> void:
 	_set_care_open(false)
-	_paywall.visible = false
 	_album.call("open")
 
 
@@ -317,15 +313,29 @@ func _toggle_care() -> void:
 	_set_care_open(not _care_open)
 
 
+func _set_care_open(open: bool) -> void:
+	_care_open = open
+	_offered_hat = ""
+	_care_drawer.call("open" if open else "close")
+	_frame_camera()
+
+
 func _on_care_action(action: String) -> void:
+	if action != "hat":
+		_offered_hat = ""
 	match action:
 		"cocoa":
-			GameState.apply_deltas(6, 4, GameState.care_affection("cocoa", 3))
-			_bloopie.call("say", _pick(CARE_LINES.cocoa), "happy")
+			if _pay(COCOA_PRICE):
+				GameState.feed(12)
+				GameState.apply_deltas(6, 4, GameState.care_affection("cocoa", 3))
+				_bloopie.call("say", _pick(CARE_LINES.cocoa), "happy")
 		"tart":
-			GameState.apply_deltas(8, 8, GameState.care_affection("tart", 3))
-			_bloopie.call("say", _pick(CARE_LINES.tart), "excited")
+			if _pay(TART_PRICE):
+				GameState.feed(25)
+				GameState.apply_deltas(8, 8, GameState.care_affection("tart", 3))
+				_bloopie.call("say", _pick(CARE_LINES.tart), "excited")
 		"wash":
+			GameState.wash(30)
 			GameState.apply_deltas(5, 0, GameState.care_affection("wash", 3))
 			_bloopie.call("start_bubbles")
 			_bloopie.call("say", _pick(CARE_LINES.wash), "laugh")
@@ -334,16 +344,47 @@ func _on_care_action(action: String) -> void:
 			_bloopie.call("show_emotion", "proud", 2.0)
 			_show_toast("Тема: %s" % GameState.THEMES[theme_id].title)
 		"hat":
-			var before := GameState.hat_id
-			var hat_id := GameState.cycle_hat()
-			if hat_id == before:
-				_show_toast("Новые шапочки откроются с ростом дружбы")
-			else:
-				_bloopie.call("show_emotion", "shy" if hat_id != "none" else "happy", 2.0)
-				_show_toast(GameState.HATS[hat_id].title)
+			_next_hat()
 		"weather":
 			var mode := TimeWeatherSystem.cycle_window_mode()
 			_show_toast("За окном: %s" % TimeWeatherSystem.MODE_TITLES[mode].to_lower())
+
+
+func _pay(price: int) -> bool:
+	if GameState.spend_coins(price):
+		return true
+	_show_toast("Не хватает монеток. Споём вместе — заработаем!")
+	return false
+
+
+## Walks through the wardrobe. Owned hats are put on at once; a hat that is
+## unlocked but not bought yet is offered first and bought on the second tap.
+func _next_hat() -> void:
+	var hat_id := GameState.next_hat()
+	if not _offered_hat.is_empty():
+		hat_id = _offered_hat
+	var info: Dictionary = GameState.HATS[hat_id]
+	if GameState.is_hat_owned(hat_id):
+		_wear(hat_id)
+	elif not GameState.is_hat_unlocked(hat_id):
+		_show_toast("«%s» откроется на Lv.%d" % [info.title, info.level])
+		_wear("none")
+	elif _offered_hat == hat_id:
+		if GameState.buy_hat(hat_id):
+			_wear(hat_id)
+			_show_toast("Куплено: %s" % info.title)
+		else:
+			_show_toast("Не хватает монеток: нужно %d" % info.price)
+			_wear("none")
+	else:
+		_offered_hat = hat_id
+		_show_toast("«%s» стоит %d монет. Нажми ещё раз, чтобы купить" % [info.title, info.price])
+
+
+func _wear(hat_id: String) -> void:
+	_offered_hat = ""
+	GameState.set_hat(hat_id)
+	_bloopie.call("show_emotion", "shy" if hat_id != "none" else "happy", 2.0)
 
 
 func _pick(lines: Array) -> String:
@@ -381,49 +422,53 @@ func _open_minigame() -> void:
 	if _bloopie.get("is_sleeping"):
 		_set_sleeping(false)
 	_set_dock_visible(false)
+	_top_bar.visible = false
+	_bloopie.call("hush")
 	_minigame.call("open")
 
 
 func _on_minigame_closed() -> void:
 	_set_dock_visible(true)
+	_top_bar.visible = true
 	_bloopie.call("stop_singing")
 
 
-func _on_minigame_finished(accuracy_percent: int) -> void:
-	_set_dock_visible(true)
-	_bloopie.call("stop_singing")
+func _on_minigame_finished(accuracy_percent: int, notes_hit: int) -> void:
+	_on_minigame_closed()
 	GameState.add_vocal_result(accuracy_percent)
+	var reward := 5 + accuracy_percent / 5
+	GameState.add_coins(reward)
+	_show_toast("Точность %d%% · +%d монет" % [accuracy_percent, reward])
 	_send_message("Мы спели вместе!", {
 		"type": "vocal_result",
 		"accuracy_percent": accuracy_percent,
+		"notes_hit": notes_hit,
 		"vocal_level": GameState.vocal_level,
 	})
 
 
-# --- Level, trial and cryo-capsule ----------------------------------------------------------------
+# --- Level, trial and cryo-stasis -----------------------------------------------------------------
 
 func _on_level_changed(level: int) -> void:
 	_refresh_top_bar()
-	_show_toast("Дружба выросла: Lv.%d" % level)
+	_show_toast("Дружба выросла: Lv.%d · +%d монет" % [level, GameState.LEVEL_UP_COINS])
 
 
 func _on_frozen_changed(frozen: bool) -> void:
 	_set_hud_enabled(not frozen and GameState.hatched)
 	_environment.call("set_sleeping", frozen)
+	_paywall.visible = frozen
 	if frozen:
 		_minigame.visible = false
-		_set_dock_visible(true)
+		_top_bar.visible = true
+		_set_dock_visible(false)
+		_paywall_note.text = "Альбом воспоминаний всегда открыт"
 	else:
-		_paywall.visible = false
+		_set_dock_visible(true)
 		_btn_sleep.text = "Сон"
 		if GameState.hatched and _greeted:
 			_bloopie.call("say", "Я проснулся! Как же я по тебе соскучился.", "love")
 
 
-func _show_paywall() -> void:
-	_paywall_body.text = "Пробные 14 дней закончились. Блупи сладко спит в крио-капсуле и ждёт тебя.\nАльбом воспоминаний всегда открыт."
-	_paywall.visible = true
-
-
 func _on_purchase_unavailable() -> void:
-	_paywall_body.text = "Покупка Cozy Pass пока недоступна в этой сборке. Блупи подождёт, а альбом остаётся с тобой."
+	_paywall_note.text = "Покупка Cozy Pass пока недоступна в этой сборке"

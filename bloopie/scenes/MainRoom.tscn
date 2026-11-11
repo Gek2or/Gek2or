@@ -1,4 +1,4 @@
-[gd_scene load_steps=26 format=3]
+[gd_scene load_steps=30 format=3]
 
 [ext_resource type="Script" path="res://scripts/MainRoom.gd" id="1"]
 [ext_resource type="Script" path="res://scripts/environment/EnvironmentController.gd" id="2"]
@@ -18,6 +18,9 @@
 [ext_resource type="Texture2D" path="res://art/icons/play.svg" id="16"]
 [ext_resource type="Texture2D" path="res://art/icons/moon.svg" id="17"]
 [ext_resource type="Texture2D" path="res://art/icons/send.svg" id="18"]
+[ext_resource type="Shader" path="res://shaders/palette_swap.gdshader" id="19"]
+[ext_resource type="Texture2D" path="res://art/icons/coin.svg" id="20"]
+[ext_resource type="Texture2D" path="res://art/icons/lock.svg" id="21"]
 
 [sub_resource type="ShaderMaterial" id="RainMaterial"]
 shader = ExtResource("3")
@@ -27,6 +30,14 @@ shader_parameter/glow_color = Color(1, 0.698039, 0.419608, 1)
 shader_parameter/rain_intensity = 0.8
 shader_parameter/star_amount = 0.15
 shader_parameter/aspect = 0.62
+
+[sub_resource type="ShaderMaterial" id="PlushMaterial"]
+shader = ExtResource("19")
+shader_parameter/source_base = Color(0.541176, 0.780392, 0.968627, 1)
+shader_parameter/source_shade = Color(0.356863, 0.556863, 0.788235, 1)
+shader_parameter/target_base = Color(0.541176, 0.780392, 0.968627, 1)
+shader_parameter/target_shade = Color(0.356863, 0.556863, 0.788235, 1)
+shader_parameter/tolerance = 0.07
 
 [sub_resource type="CircleShape2D" id="BodyShape"]
 radius = 195.0
@@ -77,6 +88,7 @@ script = ExtResource("5")
 
 [node name="BloopieActor" type="Area2D" parent="."]
 position = Vector2(540, 1080)
+scale = Vector2(1.5, 1.5)
 script = ExtResource("6")
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="BloopieActor"]
@@ -89,14 +101,17 @@ script = ExtResource("7")
 part = "shadow"
 
 [node name="BackTufts" type="Sprite2D" parent="BloopieActor/VisualRoot"]
+material = SubResource("PlushMaterial")
 script = ExtResource("7")
 part = "tufts"
 
 [node name="BodyBase" type="Sprite2D" parent="BloopieActor/VisualRoot"]
+material = SubResource("PlushMaterial")
 script = ExtResource("7")
 part = "body"
 
 [node name="TopCurl" type="Node2D" parent="BloopieActor/VisualRoot"]
+material = SubResource("PlushMaterial")
 position = Vector2(0, -186)
 script = ExtResource("7")
 part = "curl"
@@ -117,6 +132,7 @@ script = ExtResource("7")
 part = "mouth"
 
 [node name="FrontPaws" type="Sprite2D" parent="BloopieActor/VisualRoot"]
+material = SubResource("PlushMaterial")
 script = ExtResource("7")
 part = "paws"
 
@@ -155,19 +171,19 @@ script = ExtResource("9")
 [node name="SpeechBubble" type="PanelContainer" parent="BloopieActor"]
 visible = false
 z_index = 5
-offset_left = -380.0
+offset_left = -400.0
 offset_top = -560.0
-offset_right = 380.0
-offset_bottom = -410.0
+offset_right = 400.0
+offset_bottom = -404.0
 mouse_filter = 2
 
 [node name="MarginContainer" type="MarginContainer" parent="BloopieActor/SpeechBubble"]
 layout_mode = 2
 mouse_filter = 2
 theme_override_constants/margin_left = 44
-theme_override_constants/margin_top = 30
+theme_override_constants/margin_top = 26
 theme_override_constants/margin_right = 44
-theme_override_constants/margin_bottom = 34
+theme_override_constants/margin_bottom = 30
 
 [node name="ReplyLabel" type="Label" parent="BloopieActor/SpeechBubble/MarginContainer"]
 layout_mode = 2
@@ -175,45 +191,60 @@ horizontal_alignment = 1
 autowrap_mode = 3
 
 [node name="Camera2D" type="Camera2D" parent="."]
-position = Vector2(540, 1010)
-zoom = Vector2(1.15, 1.15)
+position = Vector2(540, 960)
 
 [node name="HUD" type="CanvasLayer" parent="."]
-
-[node name="TopPanel" type="Panel" parent="HUD"]
-anchors_preset = 10
-anchor_right = 1.0
-offset_left = 20.0
-offset_top = 56.0
-offset_right = -20.0
-offset_bottom = 184.0
-grow_horizontal = 2
-mouse_filter = 2
 
 [node name="TopBar" type="HBoxContainer" parent="HUD"]
 anchors_preset = 10
 anchor_right = 1.0
-offset_left = 48.0
-offset_top = 72.0
-offset_right = -40.0
-offset_bottom = 168.0
+offset_left = 36.0
+offset_top = 70.0
+offset_right = -36.0
+offset_bottom = 166.0
 grow_horizontal = 2
-theme_override_constants/separation = 22
+theme_override_constants/separation = 18
 
-[node name="HeartIcon" type="TextureRect" parent="HUD/TopBar"]
-custom_minimum_size = Vector2(76, 76)
+[node name="LevelPill" type="PanelContainer" parent="HUD/TopBar"]
+layout_mode = 2
+
+[node name="Row" type="HBoxContainer" parent="HUD/TopBar/LevelPill"]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="HeartIcon" type="TextureRect" parent="HUD/TopBar/LevelPill/Row"]
+custom_minimum_size = Vector2(60, 60)
 layout_mode = 2
 size_flags_vertical = 4
 texture = ExtResource("13")
 expand_mode = 1
 stretch_mode = 5
 
-[node name="LevelLabel" type="Label" parent="HUD/TopBar"]
+[node name="LevelLabel" type="Label" parent="HUD/TopBar/LevelPill/Row"]
 layout_mode = 2
 text = "Lv.1"
 
+[node name="CoinsPill" type="PanelContainer" parent="HUD/TopBar"]
+layout_mode = 2
+
+[node name="Row" type="HBoxContainer" parent="HUD/TopBar/CoinsPill"]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="CoinIcon" type="TextureRect" parent="HUD/TopBar/CoinsPill/Row"]
+custom_minimum_size = Vector2(60, 60)
+layout_mode = 2
+size_flags_vertical = 4
+texture = ExtResource("20")
+expand_mode = 1
+stretch_mode = 5
+
+[node name="CoinsLabel" type="Label" parent="HUD/TopBar/CoinsPill/Row"]
+layout_mode = 2
+text = "120"
+
 [node name="MoodBar" type="ProgressBar" parent="HUD/TopBar"]
-custom_minimum_size = Vector2(0, 52)
+custom_minimum_size = Vector2(0, 46)
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 4
@@ -221,19 +252,19 @@ value = 70.0
 show_percentage = false
 
 [node name="AlbumButton" type="Button" parent="HUD/TopBar"]
-custom_minimum_size = Vector2(290, 0)
+custom_minimum_size = Vector2(110, 0)
 layout_mode = 2
-text = "Альбом"
 icon = ExtResource("14")
+icon_alignment = 1
 expand_icon = true
 
 [node name="Toast" type="Label" parent="HUD"]
 anchors_preset = 10
 anchor_right = 1.0
 offset_left = 90.0
-offset_top = 206.0
+offset_top = 190.0
 offset_right = -90.0
-offset_bottom = 296.0
+offset_bottom = 280.0
 grow_horizontal = 2
 mouse_filter = 2
 horizontal_alignment = 1
@@ -247,9 +278,9 @@ anchor_top = 1.0
 anchor_right = 1.0
 anchor_bottom = 1.0
 offset_left = 30.0
-offset_top = -530.0
+offset_top = -528.0
 offset_right = -30.0
-offset_bottom = -440.0
+offset_bottom = -436.0
 grow_horizontal = 2
 grow_vertical = 0
 theme_override_constants/separation = 14
@@ -276,7 +307,7 @@ anchor_top = 1.0
 anchor_right = 1.0
 anchor_bottom = 1.0
 offset_left = 30.0
-offset_top = -410.0
+offset_top = -416.0
 offset_right = -30.0
 offset_bottom = -300.0
 grow_horizontal = 2
@@ -290,7 +321,7 @@ placeholder_text = "Напиши Блупи..."
 max_length = 400
 
 [node name="SendButton" type="Button" parent="HUD/ChatBar"]
-custom_minimum_size = Vector2(110, 110)
+custom_minimum_size = Vector2(116, 116)
 layout_mode = 2
 icon = ExtResource("18")
 icon_alignment = 1
@@ -302,10 +333,10 @@ anchors_preset = 12
 anchor_top = 1.0
 anchor_right = 1.0
 anchor_bottom = 1.0
-offset_left = 30.0
-offset_top = -900.0
-offset_right = -30.0
-offset_bottom = -300.0
+offset_left = 24.0
+offset_top = -720.0
+offset_right = -24.0
+offset_bottom = -296.0
 grow_horizontal = 2
 grow_vertical = 0
 script = ExtResource("10")
@@ -315,10 +346,10 @@ anchors_preset = 12
 anchor_top = 1.0
 anchor_right = 1.0
 anchor_bottom = 1.0
-offset_left = 20.0
-offset_top = -270.0
-offset_right = -20.0
-offset_bottom = -36.0
+offset_left = 24.0
+offset_top = -276.0
+offset_right = -24.0
+offset_bottom = -40.0
 grow_horizontal = 2
 grow_vertical = 0
 mouse_filter = 2
@@ -328,49 +359,37 @@ anchors_preset = 12
 anchor_top = 1.0
 anchor_right = 1.0
 anchor_bottom = 1.0
-offset_left = 44.0
-offset_top = -246.0
-offset_right = -44.0
-offset_bottom = -60.0
+offset_left = 46.0
+offset_top = -254.0
+offset_right = -46.0
+offset_bottom = -62.0
 grow_horizontal = 2
 grow_vertical = 0
 theme_override_constants/separation = 18
 
 [node name="BtnChat" type="Button" parent="HUD/BottomDock"]
 layout_mode = 2
-icon_alignment = 1
-vertical_icon_alignment = 0
 size_flags_horizontal = 3
 text = "Чат"
 icon = ExtResource("15")
-expand_icon = true
 
 [node name="BtnCare" type="Button" parent="HUD/BottomDock"]
 layout_mode = 2
-icon_alignment = 1
-vertical_icon_alignment = 0
 size_flags_horizontal = 3
 text = "Забота"
 icon = ExtResource("13")
-expand_icon = true
 
 [node name="BtnPlay" type="Button" parent="HUD/BottomDock"]
 layout_mode = 2
-icon_alignment = 1
-vertical_icon_alignment = 0
 size_flags_horizontal = 3
 text = "Игра"
 icon = ExtResource("16")
-expand_icon = true
 
 [node name="BtnSleep" type="Button" parent="HUD/BottomDock"]
 layout_mode = 2
-icon_alignment = 1
-vertical_icon_alignment = 0
 size_flags_horizontal = 3
 text = "Сон"
 icon = ExtResource("17")
-expand_icon = true
 
 [node name="VocalMinigame" type="Control" parent="HUD"]
 visible = false
@@ -398,37 +417,29 @@ anchors_preset = 12
 anchor_top = 1.0
 anchor_right = 1.0
 anchor_bottom = 1.0
-offset_left = 30.0
-offset_top = -700.0
-offset_right = -30.0
-offset_bottom = -40.0
+offset_left = 60.0
+offset_top = -330.0
+offset_right = -60.0
+offset_bottom = -50.0
 grow_horizontal = 2
 grow_vertical = 0
 
 [node name="Content" type="VBoxContainer" parent="HUD/PaywallModal"]
 layout_mode = 2
 alignment = 1
-theme_override_constants/separation = 30
+theme_override_constants/separation = 18
 
-[node name="Title" type="Label" parent="HUD/PaywallModal/Content"]
+[node name="WakeUpButton" type="Button" parent="HUD/PaywallModal/Content"]
+custom_minimum_size = Vector2(0, 190)
 layout_mode = 2
-text = "Блупи спит"
-horizontal_alignment = 1
+text = "Разбудить Блупи
+(Cozy Pass)"
+icon = ExtResource("21")
 
-[node name="Body" type="Label" parent="HUD/PaywallModal/Content"]
+[node name="Note" type="Label" parent="HUD/PaywallModal/Content"]
 layout_mode = 2
 horizontal_alignment = 1
 autowrap_mode = 3
-
-[node name="UnfreezeButton" type="Button" parent="HUD/PaywallModal/Content"]
-custom_minimum_size = Vector2(0, 130)
-layout_mode = 2
-text = "Разбудить Блупи"
-
-[node name="CloseButton" type="Button" parent="HUD/PaywallModal/Content"]
-custom_minimum_size = Vector2(0, 110)
-layout_mode = 2
-text = "Пусть поспит"
 
 [node name="CameraFlashRect" type="ColorRect" parent="HUD"]
 visible = false

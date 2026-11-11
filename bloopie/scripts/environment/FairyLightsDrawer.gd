@@ -4,7 +4,7 @@ extends Node2D
 const WIRE := Color("#3A2A2A")
 const GLOW := Color("#FFD175")
 const BULB := Color("#FFF1C4")
-const ANCHORS: Array[Vector2] = [Vector2(-60, 336), Vector2(350, 362), Vector2(760, 340), Vector2(1140, 328)]
+const ANCHORS: Array[Vector2] = [Vector2(-60, 226), Vector2(330, 300), Vector2(760, 250), Vector2(1140, 236)]
 const SAG := 82.0
 const BULB_SPACING := 0.2
 const REDRAW_INTERVAL := 1.0 / 15.0
