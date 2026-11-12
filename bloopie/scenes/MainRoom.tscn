@@ -1,0 +1,489 @@
+[gd_scene load_steps=46 format=3]
+
+[ext_resource type="Script" path="res://scripts/MainRoom.gd" id="1"]
+[ext_resource type="Script" path="res://scripts/environment/EnvironmentController.gd" id="2"]
+[ext_resource type="Shader" path="res://shaders/rain_window.gdshader" id="3"]
+[ext_resource type="Script" path="res://scripts/environment/RoomArt.gd" id="4"]
+[ext_resource type="Script" path="res://scripts/environment/FairyLightsDrawer.gd" id="5"]
+[ext_resource type="Script" path="res://scripts/bloopie/BloopieActor.gd" id="6"]
+[ext_resource type="Script" path="res://scripts/bloopie/BloopiePart.gd" id="7"]
+[ext_resource type="Script" path="res://scripts/bloopie/FaceController.gd" id="8"]
+[ext_resource type="Script" path="res://scripts/bloopie/BloopieVoiceSynth.gd" id="9"]
+[ext_resource type="Script" path="res://scripts/ui/CareDrawer.gd" id="10"]
+[ext_resource type="Script" path="res://scripts/ui/VocalMinigame.gd" id="11"]
+[ext_resource type="Script" path="res://scripts/ui/MemoryAlbum.gd" id="12"]
+[ext_resource type="Texture2D" path="res://art/icons/heart.svg" id="13"]
+[ext_resource type="Texture2D" path="res://art/icons/album.svg" id="14"]
+[ext_resource type="Texture2D" path="res://art/icons/chat.svg" id="15"]
+[ext_resource type="Texture2D" path="res://art/icons/play.svg" id="16"]
+[ext_resource type="Texture2D" path="res://art/icons/moon.svg" id="17"]
+[ext_resource type="Texture2D" path="res://art/icons/send.svg" id="18"]
+[ext_resource type="Shader" path="res://shaders/palette_swap.gdshader" id="19"]
+[ext_resource type="Texture2D" path="res://art/icons/coin.svg" id="20"]
+[ext_resource type="Texture2D" path="res://art/icons/lock.svg" id="21"]
+[ext_resource type="Texture2D" path="res://art/painted/room_supporter.jpg" id="22"]
+[ext_resource type="Texture2D" path="res://art/painted/bloopie_body.png" id="23"]
+[ext_resource type="Texture2D" path="res://art/painted/face_brows_blank.png" id="24"]
+[ext_resource type="Texture2D" path="res://art/painted/icon_chat.png" id="25"]
+[ext_resource type="Texture2D" path="res://art/painted/icon_care.png" id="26"]
+[ext_resource type="Texture2D" path="res://art/painted/icon_play.png" id="27"]
+[ext_resource type="Texture2D" path="res://art/painted/icon_sleep.png" id="28"]
+[ext_resource type="Texture2D" path="res://art/icons/back.svg" id="29"]
+
+[sub_resource type="ShaderMaterial" id="RainMaterial"]
+shader = ExtResource("3")
+shader_parameter/rain_intensity = 0.8
+shader_parameter/star_amount = 0.0
+shader_parameter/aspect = 0.92
+
+[sub_resource type="ShaderMaterial" id="PlushMaterial"]
+shader = ExtResource("19")
+shader_parameter/source_base = Color(0.62, 0.745, 0.933, 1)
+shader_parameter/target_base = Color(0.62, 0.745, 0.933, 1)
+shader_parameter/target_shade = Color(0.356863, 0.556863, 0.788235, 1)
+shader_parameter/eye_left = Vector4(0.405, 0.552, 0.108, 0.1)
+shader_parameter/eye_right = Vector4(0.728, 0.548, 0.098, 0.097)
+
+[sub_resource type="ShaderMaterial" id="PatchMaterial"]
+shader = ExtResource("19")
+shader_parameter/source_base = Color(0.62, 0.745, 0.933, 1)
+shader_parameter/target_base = Color(0.62, 0.745, 0.933, 1)
+shader_parameter/target_shade = Color(0.356863, 0.556863, 0.788235, 1)
+shader_parameter/eye_left = Vector4(0, 0, 0.0001, 0.0001)
+shader_parameter/eye_right = Vector4(0, 0, 0.0001, 0.0001)
+
+[sub_resource type="CircleShape2D" id="BodyShape"]
+radius = 195.0
+
+[node name="MainRoom" type="Node2D"]
+script = ExtResource("1")
+
+[node name="EnvironmentLayer" type="CanvasLayer" parent="."]
+layer = -1
+follow_viewport_enabled = true
+script = ExtResource("2")
+
+[node name="SkyBackdrop" type="TextureRect" parent="EnvironmentLayer"]
+z_index = -30
+offset_right = 1080.0
+offset_bottom = 1920.0
+mouse_filter = 2
+texture = ExtResource("22")
+expand_mode = 1
+
+[node name="WindowGlassRain" type="ColorRect" parent="EnvironmentLayer"]
+z_index = -20
+material = SubResource("RainMaterial")
+offset_left = 150.0
+offset_right = 980.0
+offset_bottom = 900.0
+mouse_filter = 2
+
+[node name="WindowFrameProps" type="Control" parent="EnvironmentLayer"]
+z_index = -10
+layout_mode = 3
+anchors_preset = 0
+offset_right = 1080.0
+offset_bottom = 1920.0
+mouse_filter = 2
+script = ExtResource("4")
+layer = "frame"
+
+[node name="SillAndCushion" type="Sprite2D" parent="EnvironmentLayer"]
+script = ExtResource("4")
+layer = "sill"
+
+[node name="FairyLightsFG" type="Node2D" parent="EnvironmentLayer"]
+z_index = 10
+script = ExtResource("5")
+
+[node name="BloopieActor" type="Area2D" parent="."]
+position = Vector2(540, 1080)
+scale = Vector2(1.5, 1.5)
+script = ExtResource("6")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="BloopieActor"]
+shape = SubResource("BodyShape")
+
+[node name="VisualRoot" type="Node2D" parent="BloopieActor"]
+
+[node name="DropShadow" type="Sprite2D" parent="BloopieActor/VisualRoot"]
+visible = false
+position = Vector2(0, 30)
+script = ExtResource("7")
+part = "shadow"
+
+[node name="BackTufts" type="Sprite2D" parent="BloopieActor/VisualRoot"]
+visible = false
+
+[node name="BodyBase" type="Sprite2D" parent="BloopieActor/VisualRoot"]
+material = SubResource("PlushMaterial")
+texture = ExtResource("23")
+centered = false
+position = Vector2(-244.1, -383.7)
+scale = Vector2(0.6406, 0.6406)
+
+[node name="TopCurl" type="Node2D" parent="BloopieActor/VisualRoot"]
+visible = false
+
+[node name="FaceController" type="Node2D" parent="BloopieActor/VisualRoot"]
+script = ExtResource("8")
+
+[node name="EyesSprite" type="AnimatedSprite2D" parent="BloopieActor/VisualRoot/FaceController"]
+material = SubResource("PatchMaterial")
+centered = false
+position = Vector2(-244.1, -383.7)
+scale = Vector2(0.6406, 0.6406)
+
+[node name="BlushSprite" type="Sprite2D" parent="BloopieActor/VisualRoot/FaceController"]
+visible = false
+
+[node name="BrowsCover" type="Sprite2D" parent="BloopieActor/VisualRoot/FaceController"]
+material = SubResource("PatchMaterial")
+texture = ExtResource("24")
+centered = false
+position = Vector2(-244.1, -383.7)
+scale = Vector2(0.6406, 0.6406)
+
+[node name="MouthTeeth" type="AnimatedSprite2D" parent="BloopieActor/VisualRoot/FaceController"]
+material = SubResource("PatchMaterial")
+centered = false
+position = Vector2(-244.1, -383.7)
+scale = Vector2(0.6406, 0.6406)
+
+[node name="FaceInk" type="Node2D" parent="BloopieActor/VisualRoot/FaceController"]
+script = ExtResource("7")
+part = "face_ink"
+
+[node name="FrontPaws" type="Sprite2D" parent="BloopieActor/VisualRoot"]
+visible = false
+
+[node name="HatSlot" type="Sprite2D" parent="BloopieActor/VisualRoot"]
+position = Vector2(-6, -8)
+scale = Vector2(1.08, 1.1)
+script = ExtResource("7")
+part = "hat"
+
+[node name="EmoteDecor" type="Node2D" parent="BloopieActor/VisualRoot"]
+z_index = 2
+script = ExtResource("7")
+part = "decor"
+
+[node name="PlayBall" type="Node2D" parent="BloopieActor"]
+visible = false
+script = ExtResource("7")
+part = "ball"
+
+[node name="FrozenCapsule" type="Node2D" parent="BloopieActor"]
+visible = false
+z_index = 3
+script = ExtResource("7")
+part = "capsule"
+
+[node name="CryoLight" type="PointLight2D" parent="BloopieActor/FrozenCapsule"]
+enabled = false
+
+[node name="HeartParticles" type="GPUParticles2D" parent="BloopieActor"]
+z_index = 4
+emitting = false
+
+[node name="SFXPlayer" type="AudioStreamPlayer2D" parent="BloopieActor"]
+
+[node name="BlipPlayer" type="AudioStreamPlayer2D" parent="BloopieActor"]
+script = ExtResource("9")
+
+[node name="SpeechBubble" type="PanelContainer" parent="BloopieActor"]
+visible = false
+z_index = 5
+offset_left = -345.0
+offset_top = -494.0
+offset_right = 345.0
+offset_bottom = -338.0
+mouse_filter = 2
+
+[node name="MarginContainer" type="MarginContainer" parent="BloopieActor/SpeechBubble"]
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/margin_left = 44
+theme_override_constants/margin_top = 26
+theme_override_constants/margin_right = 44
+theme_override_constants/margin_bottom = 30
+
+[node name="ReplyLabel" type="Label" parent="BloopieActor/SpeechBubble/MarginContainer"]
+layout_mode = 2
+horizontal_alignment = 1
+autowrap_mode = 3
+
+[node name="Camera2D" type="Camera2D" parent="."]
+position = Vector2(540, 960)
+limit_left = 0
+limit_top = 0
+limit_right = 1080
+limit_bottom = 1920
+
+[node name="HUD" type="CanvasLayer" parent="."]
+
+[node name="TopBar" type="HBoxContainer" parent="HUD"]
+anchors_preset = 10
+anchor_right = 1.0
+offset_left = 36.0
+offset_top = 70.0
+offset_right = -36.0
+offset_bottom = 166.0
+grow_horizontal = 2
+theme_override_constants/separation = 18
+
+[node name="LevelPill" type="PanelContainer" parent="HUD/TopBar"]
+layout_mode = 2
+
+[node name="Row" type="HBoxContainer" parent="HUD/TopBar/LevelPill"]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="HeartIcon" type="TextureRect" parent="HUD/TopBar/LevelPill/Row"]
+custom_minimum_size = Vector2(60, 60)
+layout_mode = 2
+size_flags_vertical = 4
+texture = ExtResource("13")
+expand_mode = 1
+stretch_mode = 5
+
+[node name="LevelLabel" type="Label" parent="HUD/TopBar/LevelPill/Row"]
+layout_mode = 2
+text = "Lv.1"
+
+[node name="CoinsPill" type="PanelContainer" parent="HUD/TopBar"]
+layout_mode = 2
+
+[node name="Row" type="HBoxContainer" parent="HUD/TopBar/CoinsPill"]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="CoinIcon" type="TextureRect" parent="HUD/TopBar/CoinsPill/Row"]
+custom_minimum_size = Vector2(60, 60)
+layout_mode = 2
+size_flags_vertical = 4
+texture = ExtResource("20")
+expand_mode = 1
+stretch_mode = 5
+
+[node name="CoinsLabel" type="Label" parent="HUD/TopBar/CoinsPill/Row"]
+layout_mode = 2
+text = "120"
+
+[node name="MoodBar" type="ProgressBar" parent="HUD/TopBar"]
+custom_minimum_size = Vector2(0, 46)
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 4
+value = 70.0
+show_percentage = false
+
+[node name="AlbumButton" type="Button" parent="HUD/TopBar"]
+custom_minimum_size = Vector2(110, 0)
+layout_mode = 2
+icon = ExtResource("14")
+icon_alignment = 1
+expand_icon = true
+
+[node name="Toast" type="Label" parent="HUD"]
+anchors_preset = 10
+anchor_right = 1.0
+offset_left = 90.0
+offset_top = 190.0
+offset_right = -90.0
+offset_bottom = 280.0
+grow_horizontal = 2
+mouse_filter = 2
+horizontal_alignment = 1
+vertical_alignment = 1
+autowrap_mode = 3
+
+[node name="ChatBack" type="Button" parent="HUD"]
+visible = false
+offset_left = 36.0
+offset_top = 190.0
+offset_right = 146.0
+offset_bottom = 300.0
+icon = ExtResource("29")
+icon_alignment = 1
+expand_icon = true
+
+[node name="QuickReplies" type="HBoxContainer" parent="HUD"]
+visible = false
+anchors_preset = 12
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 30.0
+offset_top = -528.0
+offset_right = -30.0
+offset_bottom = -436.0
+grow_horizontal = 2
+grow_vertical = 0
+theme_override_constants/separation = 14
+
+[node name="ChipHappy" type="Button" parent="HUD/QuickReplies"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Мне радостно!"
+
+[node name="ChipTired" type="Button" parent="HUD/QuickReplies"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Я устал..."
+
+[node name="ChipJoke" type="Button" parent="HUD/QuickReplies"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Пошути!"
+
+[node name="ChatBar" type="HBoxContainer" parent="HUD"]
+visible = false
+anchors_preset = 12
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 30.0
+offset_top = -416.0
+offset_right = -30.0
+offset_bottom = -300.0
+grow_horizontal = 2
+grow_vertical = 0
+theme_override_constants/separation = 16
+
+[node name="MessageInput" type="LineEdit" parent="HUD/ChatBar"]
+layout_mode = 2
+size_flags_horizontal = 3
+placeholder_text = "Напиши Блупи..."
+max_length = 400
+
+[node name="SendButton" type="Button" parent="HUD/ChatBar"]
+custom_minimum_size = Vector2(116, 116)
+layout_mode = 2
+icon = ExtResource("18")
+icon_alignment = 1
+expand_icon = true
+
+[node name="CareDrawer" type="PanelContainer" parent="HUD"]
+visible = false
+anchors_preset = 12
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 24.0
+offset_top = -612.0
+offset_right = -24.0
+offset_bottom = -296.0
+grow_horizontal = 2
+grow_vertical = 0
+script = ExtResource("10")
+
+[node name="DockPanel" type="Panel" parent="HUD"]
+anchors_preset = 12
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 24.0
+offset_top = -276.0
+offset_right = -24.0
+offset_bottom = -40.0
+grow_horizontal = 2
+grow_vertical = 0
+mouse_filter = 2
+
+[node name="BottomDock" type="HBoxContainer" parent="HUD"]
+anchors_preset = 12
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 46.0
+offset_top = -254.0
+offset_right = -46.0
+offset_bottom = -62.0
+grow_horizontal = 2
+grow_vertical = 0
+theme_override_constants/separation = 18
+
+[node name="BtnChat" type="Button" parent="HUD/BottomDock"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Чат"
+icon = ExtResource("25")
+
+[node name="BtnCare" type="Button" parent="HUD/BottomDock"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Забота"
+icon = ExtResource("26")
+
+[node name="BtnPlay" type="Button" parent="HUD/BottomDock"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Игра"
+icon = ExtResource("27")
+
+[node name="BtnSleep" type="Button" parent="HUD/BottomDock"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Сон"
+icon = ExtResource("28")
+
+[node name="VocalMinigame" type="Control" parent="HUD"]
+visible = false
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("11")
+
+[node name="MemoryAlbum" type="Control" parent="HUD"]
+visible = false
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("12")
+
+[node name="PaywallModal" type="PanelContainer" parent="HUD"]
+visible = false
+anchors_preset = 12
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 60.0
+offset_top = -330.0
+offset_right = -60.0
+offset_bottom = -50.0
+grow_horizontal = 2
+grow_vertical = 0
+
+[node name="Content" type="VBoxContainer" parent="HUD/PaywallModal"]
+layout_mode = 2
+alignment = 1
+theme_override_constants/separation = 18
+
+[node name="WakeUpButton" type="Button" parent="HUD/PaywallModal/Content"]
+custom_minimum_size = Vector2(0, 190)
+layout_mode = 2
+text = "Разбудить Блупи
+(Cozy Pass)"
+icon = ExtResource("21")
+
+[node name="Note" type="Label" parent="HUD/PaywallModal/Content"]
+layout_mode = 2
+horizontal_alignment = 1
+autowrap_mode = 3
+
+[node name="CameraFlashRect" type="ColorRect" parent="HUD"]
+visible = false
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2

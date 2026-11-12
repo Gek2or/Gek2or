@@ -1,0 +1,7 @@
+.godot/
+*.translation
+android/
+*.apk
+*.aab
+*.ipa
+build/

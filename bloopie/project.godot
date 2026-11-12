@@ -1,0 +1,56 @@
+; Engine configuration file.
+; It's best edited using the editor UI and not directly,
+; since the parameters that go here are not all obvious.
+;
+; Format:
+;   [section] ; section goes between []
+;   param=value ; assign values to parameters
+
+config_version=5
+
+[application]
+
+config/name="Bloopie"
+config/description="Bloopie — your cozy AI friend"
+run/main_scene="res://scenes/MainRoom.tscn"
+config/features=PackedStringArray("4.3", "Mobile")
+boot_splash/bg_color=Color(0.137255, 0.160784, 0.27451, 1)
+boot_splash/show_image=false
+config/icon="res://icon.svg"
+
+[autoload]
+
+GameState="*res://scripts/autoload/GameState.gd"
+TimeWeatherSystem="*res://scripts/autoload/TimeWeatherSystem.gd"
+AIClient="*res://scripts/autoload/AIClient.gd"
+MemoryManager="*res://scripts/autoload/MemoryManager.gd"
+
+[bloopie]
+
+backend_url="http://127.0.0.1:8000"
+api_token="bloopie-dev-token"
+
+[display]
+
+window/size/viewport_width=1080
+window/size/viewport_height=1920
+window/size/window_width_override=540
+window/size/window_height_override=960
+window/stretch/mode="canvas_items"
+window/stretch/aspect="expand"
+window/handheld/orientation=1
+
+[gui]
+
+theme/default_font_size=38
+theme/custom_font="res://art/fonts/ui_font.tres"
+
+[input_devices]
+
+pointing/emulate_touch_from_mouse=true
+
+[rendering]
+
+renderer/rendering_method="mobile"
+textures/vram_compression/import_etc2_astc=true
+environment/defaults/default_clear_color=Color(0.137255, 0.160784, 0.27451, 1)
