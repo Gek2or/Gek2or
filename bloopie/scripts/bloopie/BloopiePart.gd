@@ -3,7 +3,7 @@ extends Node2D
 ## AnimatedSprite2D, ...) under BloopieActor; while the node has no texture or
 ## frames assigned, the layer is drawn procedurally by BloopieArt.
 
-@export_enum("shadow", "tufts", "body", "curl", "eyes", "blush", "mouth", "paws", "hat", "decor", "ball", "capsule") var part := "body"
+@export_enum("shadow", "tufts", "body", "curl", "eyes", "blush", "mouth", "paws", "hat", "decor", "ball", "capsule", "face_ink") var part := "body"
 
 ## Shared render state owned by BloopieActor.
 var state := {}
@@ -37,6 +37,8 @@ func _draw() -> void:
 			BloopieArt.draw_ball(self, state)
 		"capsule":
 			BloopieArt.draw_capsule(self, state)
+		"face_ink":
+			BloopieArt.draw_face_ink(self, state)
 
 
 func _has_painted_art() -> bool:

@@ -1,29 +1,32 @@
 extends CanvasLayer
-## Drives the five room layers: sky, rainy glass, window frame, sill with the
-## cushion, and the fairy lights. Blends between the three window moods
-## (rainy evening, sunset, night) and dims the room while Bloopie sleeps.
+## Drives the room: the painted backdrop of the current archetype, the living
+## rain / star overlay on the window, the twinkling fairy lights, and the
+## colour grading for the three window moods and for sleep.
 
 const BLEND_SECONDS := 1.6
+const ROOMS := {
+	"supporter": preload("res://art/painted/room_supporter.jpg"),
+	"explorer": preload("res://art/painted/room_explorer.jpg"),
+	# The joker shares the cozy window room until his own backdrop is painted.
+	"joker": preload("res://art/painted/room_supporter.jpg"),
+}
+## Window overlay area per room, in canvas units of the 1080x1920 backdrop.
+const WINDOWS := {
+	"supporter": Rect2(150, 0, 830, 900),
+	"explorer": Rect2(0, 0, 600, 760),
+	"joker": Rect2(150, 0, 830, 900),
+}
 const MOODS := {
-	"evening": {
-		"sky_top": Color("#35295F"), "sky_bottom": Color("#B479A6"), "glow": Color("#FFB26B"),
-		"room": Color(1.0, 0.95, 0.97), "lights": 1.0,
-	},
-	"sunset": {
-		"sky_top": Color("#5B4A9E"), "sky_bottom": Color("#FFA56B"), "glow": Color("#FFD27A"),
-		"room": Color(1.0, 0.93, 0.86), "lights": 0.75,
-	},
-	"night": {
-		"sky_top": Color("#0D1230"), "sky_bottom": Color("#2A2F6E"), "glow": Color("#F2B56B"),
-		"room": Color(0.8, 0.8, 0.96), "lights": 1.0,
-	},
+	"evening": {"room": Color(1.0, 1.0, 1.0), "lights": 1.0},
+	"sunset": {"room": Color(1.0, 0.92, 0.84), "lights": 0.75},
+	"night": {"room": Color(0.7, 0.74, 0.98), "lights": 1.0},
 }
 
 var _sleeping := false
 var _tween: Tween
 var _rain_player: AudioStreamPlayer
 
-@onready var _sky: ColorRect = $SkyBackdrop
+@onready var _sky: TextureRect = $SkyBackdrop
 @onready var _glass: ColorRect = $WindowGlassRain
 @onready var _frame: CanvasItem = $WindowFrameProps
 @onready var _sill: CanvasItem = $SillAndCushion
@@ -36,8 +39,12 @@ func _ready() -> void:
 	_rain_player.volume_db = -60.0
 	add_child(_rain_player)
 	_rain_player.play()
+	# The painted backdrop already contains the frame, the sill and the cushion.
+	_frame.visible = false
+	_sill.visible = false
 	TimeWeatherSystem.environment_updated.connect(func(_time: String, _weather: String) -> void: _blend_to_current())
-	GameState.hatched_changed.connect(_on_archetype_changed)
+	GameState.hatched_changed.connect(_apply_room)
+	_apply_room()
 	_apply(_target_values())
 
 
@@ -46,9 +53,14 @@ func set_sleeping(sleeping: bool) -> void:
 	_blend_to_current()
 
 
-func _on_archetype_changed() -> void:
-	_frame.call("set_archetype", GameState.archetype)
-	_sill.call("set_archetype", GameState.archetype)
+func _apply_room() -> void:
+	var room := GameState.archetype if ROOMS.has(GameState.archetype) else "supporter"
+	_sky.texture = ROOMS[room]
+	var window: Rect2 = WINDOWS[room]
+	_glass.position = window.position
+	_glass.size = window.size
+	(_glass.material as ShaderMaterial).set_shader_parameter("aspect", window.size.x / window.size.y)
+	_lights.call("set_room", "explorer" if room == "explorer" else "supporter")
 
 
 func _target_values() -> Dictionary:
@@ -56,25 +68,23 @@ func _target_values() -> Dictionary:
 	var room: Color = mood.room
 	var lights: float = mood.lights
 	if _sleeping:
-		room = room.darkened(0.42)
+		room = room.darkened(0.4)
 		lights *= 0.45
 	return {
-		"sky_top": mood.sky_top, "sky_bottom": mood.sky_bottom, "glow": mood.glow,
-		"stars": TimeWeatherSystem.get_star_amount(), "room": room, "lights": lights,
+		"room": room,
+		"lights": lights,
+		"stars": TimeWeatherSystem.get_star_amount(),
 		"rain": TimeWeatherSystem.get_rain_intensity(),
 	}
 
 
 func _current_values() -> Dictionary:
-	var material := _glass.material as ShaderMaterial
+	var glass := _glass.material as ShaderMaterial
 	return {
-		"sky_top": material.get_shader_parameter("sky_top"),
-		"sky_bottom": material.get_shader_parameter("sky_bottom"),
-		"glow": material.get_shader_parameter("glow_color"),
-		"stars": material.get_shader_parameter("star_amount"),
-		"room": _sill.modulate,
+		"room": _sky.modulate,
 		"lights": _lights.get("brightness"),
-		"rain": material.get_shader_parameter("rain_intensity"),
+		"stars": glass.get_shader_parameter("star_amount"),
+		"rain": glass.get_shader_parameter("rain_intensity"),
 	}
 
 
@@ -99,16 +109,10 @@ func _mix(from: Dictionary, to: Dictionary, t: float) -> Dictionary:
 
 
 func _apply(values: Dictionary) -> void:
-	var material := _glass.material as ShaderMaterial
-	material.set_shader_parameter("sky_top", values.sky_top)
-	material.set_shader_parameter("sky_bottom", values.sky_bottom)
-	material.set_shader_parameter("glow_color", values.glow)
-	material.set_shader_parameter("star_amount", values.stars)
-	material.set_shader_parameter("rain_intensity", values.rain)
-	material.set_shader_parameter("aspect", _glass.size.x / maxf(_glass.size.y, 1.0))
-	_sky.color = values.sky_top
-	_frame.modulate = values.room
-	_sill.modulate = values.room
+	var glass := _glass.material as ShaderMaterial
+	glass.set_shader_parameter("star_amount", values.stars)
+	glass.set_shader_parameter("rain_intensity", values.rain)
+	_sky.modulate = values.room
 	_lights.set("brightness", values.lights)
 	var rain: float = values.rain
 	_rain_player.volume_db = linear_to_db(maxf(0.0001, rain * 0.22))

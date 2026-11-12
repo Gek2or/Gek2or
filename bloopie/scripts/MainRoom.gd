@@ -2,16 +2,18 @@ extends Node2D
 ## Root of the game: wires the HUD to Bloopie, the AI client, the care drawer,
 ## the vocal mini-game, the polaroid album and the trial paywall.
 
-const HOME_ZOOM := Vector2.ONE
-const CHAT_ZOOM := Vector2(1.18, 1.18)
+## The painted room is exactly this big; the camera never shows anything else.
+const ROOM_SIZE := Vector2(1080, 1920)
+const CHAT_ZOOM_FACTOR := 1.18
+## In chat the view must still fit Bloopie with his cheek tufts.
+const CHAT_MIN_VIEW_WIDTH := 780.0
 const CAMERA_HOME := Vector2(540, 960)
-const CAMERA_CHAT := Vector2(540, 900)
-const CAMERA_CARE := Vector2(540, 1130)
-const CARE_ZOOM := Vector2(0.86, 0.86)
+const CAMERA_CHAT := Vector2(540, 950)
 const POLAROID_DELAY := 0.45
 const POLAROID_SIDE := 1000.0
 const CHAT_BAR_HEIGHT := 116.0
-const CHAT_BAR_BOTTOM := 300.0
+## In chat the dock gives way to the input row, as in the mock-up.
+const CHAT_BAR_BOTTOM := 64.0
 const QUICK_REPLIES_GAP := 20.0
 const QUICK_REPLIES_HEIGHT := 92.0
 const COCOA_PRICE := 5
@@ -20,7 +22,6 @@ const TART_PRICE := 10
 const CARE_LINES := {
 	"cocoa": ["Ммм, какао! Тёплое, как твои ладошки.", "Спасибо! Пенка осталась на носу?"],
 	"tart": ["Ягодный тарт! Чур, крошки не считаем.", "Вкуснятина. Половинку оставлю тебе."],
-	"wash": ["Пузырики! Щекотно!", "Буль-буль. Теперь я блестящий."],
 }
 const GREETINGS := {
 	"morning": "Доброе утро%s! Я занял тебе место на подушке.",
@@ -48,6 +49,7 @@ var _offered_hat := ""
 @onready var _coins_label: Label = $HUD/TopBar/CoinsPill/Row/CoinsLabel
 @onready var _mood_bar: ProgressBar = $HUD/TopBar/MoodBar
 @onready var _album_button: Button = $HUD/TopBar/AlbumButton
+@onready var _chat_back: Button = $HUD/ChatBack
 @onready var _quick_replies: HBoxContainer = $HUD/QuickReplies
 @onready var _chat_bar: HBoxContainer = $HUD/ChatBar
 @onready var _message_input: LineEdit = $HUD/ChatBar/MessageInput
@@ -73,6 +75,7 @@ func _ready() -> void:
 	MemoryManager.register_camera(_hud, _flash)
 	_album_button.pressed.connect(_open_album)
 	_btn_chat.pressed.connect(_toggle_chat)
+	_chat_back.pressed.connect(_set_chat_open.bind(false))
 	_btn_care.pressed.connect(_toggle_care)
 	_btn_play.pressed.connect(_open_minigame)
 	_btn_sleep.pressed.connect(_toggle_sleep)
@@ -99,6 +102,8 @@ func _ready() -> void:
 
 	_refresh_top_bar()
 	_set_chat_open(false)
+	_frame_camera(false)
+	get_viewport().size_changed.connect(_frame_camera.bind(false))
 	_on_frozen_changed(GameState.is_frozen)
 	if GameState.hatched:
 		_greet()
@@ -136,7 +141,8 @@ func _style_hud() -> void:
 	UIStyle.button(_album_button, Color(1.0, 0.97, 0.93, 0.94), 48)
 	_dock_panel.add_theme_stylebox_override("panel", UIStyle.frame(64))
 	for button: Button in _dock.get_children():
-		UIStyle.tile(button)
+		UIStyle.tile(button, 32, 112)
+	UIStyle.button(_chat_back, Color(0.16, 0.14, 0.32, 0.55), 55)
 	UIStyle.line_edit(_message_input)
 	UIStyle.button(_send_button, UIStyle.SKY, 58)
 	for chip: Button in _quick_replies.get_children():
@@ -207,21 +213,29 @@ func _greet() -> void:
 
 # --- Camera ---------------------------------------------------------------------------------------
 
-## Chat zooms in on Bloopie; the care drawer pulls the view back and up so he
-## stays visible above it.
-func _frame_camera() -> void:
+## Zoom at which the painted room covers the whole screen, whatever its aspect
+## ratio: 1.0 on a 9:16 phone, about 1.25 on a 20:9 one.
+func _cover_zoom() -> float:
+	var view := get_viewport_rect().size
+	return maxf(view.x / ROOM_SIZE.x, view.y / ROOM_SIZE.y)
+
+
+## Chat zooms in on Bloopie; everything else shows the whole room.
+func _frame_camera(animate: bool = true) -> void:
+	var cover := _cover_zoom()
+	var zoom := cover
 	var target := CAMERA_HOME
-	var zoom := HOME_ZOOM
 	if _chat_open:
+		zoom = clampf(cover * CHAT_ZOOM_FACTOR, cover, maxf(cover, get_viewport_rect().size.x / CHAT_MIN_VIEW_WIDTH))
 		target = CAMERA_CHAT
-		zoom = CHAT_ZOOM
-	elif _care_open:
-		target = CAMERA_CARE
-		zoom = CARE_ZOOM
 	if _camera_tween != null and _camera_tween.is_valid():
 		_camera_tween.kill()
+	if not animate:
+		_camera.zoom = Vector2(zoom, zoom)
+		_camera.position = target
+		return
 	_camera_tween = create_tween().set_parallel().set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
-	_camera_tween.tween_property(_camera, "zoom", zoom, 0.45)
+	_camera_tween.tween_property(_camera, "zoom", Vector2(zoom, zoom), 0.45)
 	_camera_tween.tween_property(_camera, "position", target, 0.45)
 
 
@@ -235,6 +249,8 @@ func _set_chat_open(open: bool) -> void:
 	_chat_open = open
 	_chat_bar.visible = open
 	_quick_replies.visible = open
+	_chat_back.visible = open
+	_set_dock_visible(not open and not GameState.is_frozen and not _minigame.visible)
 	if open:
 		_care_open = false
 		_care_drawer.call("close")
@@ -334,20 +350,12 @@ func _on_care_action(action: String) -> void:
 				GameState.feed(25)
 				GameState.apply_deltas(8, 8, GameState.care_affection("tart", 3))
 				_bloopie.call("say", _pick(CARE_LINES.tart), "excited")
-		"wash":
-			GameState.wash(30)
-			GameState.apply_deltas(5, 0, GameState.care_affection("wash", 3))
-			_bloopie.call("start_bubbles")
-			_bloopie.call("say", _pick(CARE_LINES.wash), "laugh")
 		"theme":
 			var theme_id := GameState.cycle_theme()
 			_bloopie.call("show_emotion", "proud", 2.0)
 			_show_toast("Тема: %s" % GameState.THEMES[theme_id].title)
 		"hat":
 			_next_hat()
-		"weather":
-			var mode := TimeWeatherSystem.cycle_window_mode()
-			_show_toast("За окном: %s" % TimeWeatherSystem.MODE_TITLES[mode].to_lower())
 
 
 func _pay(price: int) -> bool:
@@ -404,6 +412,8 @@ func _set_sleeping(sleeping: bool) -> void:
 		_bloopie.call("fall_asleep")
 		_environment.call("set_sleeping", true)
 		_btn_sleep.text = "Будить"
+		# A warm bubble bath before bed: sleep restores energy and hygiene.
+		GameState.wash(30)
 		GameState.apply_deltas(2, 25, 0)
 	else:
 		_bloopie.call("wake_up")

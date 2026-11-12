@@ -1,4 +1,4 @@
-[gd_scene load_steps=30 format=3]
+[gd_scene load_steps=46 format=3]
 
 [ext_resource type="Script" path="res://scripts/MainRoom.gd" id="1"]
 [ext_resource type="Script" path="res://scripts/environment/EnvironmentController.gd" id="2"]
@@ -21,23 +21,36 @@
 [ext_resource type="Shader" path="res://shaders/palette_swap.gdshader" id="19"]
 [ext_resource type="Texture2D" path="res://art/icons/coin.svg" id="20"]
 [ext_resource type="Texture2D" path="res://art/icons/lock.svg" id="21"]
+[ext_resource type="Texture2D" path="res://art/painted/room_supporter.jpg" id="22"]
+[ext_resource type="Texture2D" path="res://art/painted/bloopie_body.png" id="23"]
+[ext_resource type="Texture2D" path="res://art/painted/face_brows_blank.png" id="24"]
+[ext_resource type="Texture2D" path="res://art/painted/icon_chat.png" id="25"]
+[ext_resource type="Texture2D" path="res://art/painted/icon_care.png" id="26"]
+[ext_resource type="Texture2D" path="res://art/painted/icon_play.png" id="27"]
+[ext_resource type="Texture2D" path="res://art/painted/icon_sleep.png" id="28"]
+[ext_resource type="Texture2D" path="res://art/icons/back.svg" id="29"]
 
 [sub_resource type="ShaderMaterial" id="RainMaterial"]
 shader = ExtResource("3")
-shader_parameter/sky_top = Color(0.207843, 0.160784, 0.372549, 1)
-shader_parameter/sky_bottom = Color(0.705882, 0.47451, 0.65098, 1)
-shader_parameter/glow_color = Color(1, 0.698039, 0.419608, 1)
 shader_parameter/rain_intensity = 0.8
-shader_parameter/star_amount = 0.15
-shader_parameter/aspect = 0.62
+shader_parameter/star_amount = 0.0
+shader_parameter/aspect = 0.92
 
 [sub_resource type="ShaderMaterial" id="PlushMaterial"]
 shader = ExtResource("19")
-shader_parameter/source_base = Color(0.541176, 0.780392, 0.968627, 1)
-shader_parameter/source_shade = Color(0.356863, 0.556863, 0.788235, 1)
-shader_parameter/target_base = Color(0.541176, 0.780392, 0.968627, 1)
+shader_parameter/source_base = Color(0.62, 0.745, 0.933, 1)
+shader_parameter/target_base = Color(0.62, 0.745, 0.933, 1)
 shader_parameter/target_shade = Color(0.356863, 0.556863, 0.788235, 1)
-shader_parameter/tolerance = 0.07
+shader_parameter/eye_left = Vector4(0.405, 0.552, 0.108, 0.1)
+shader_parameter/eye_right = Vector4(0.728, 0.548, 0.098, 0.097)
+
+[sub_resource type="ShaderMaterial" id="PatchMaterial"]
+shader = ExtResource("19")
+shader_parameter/source_base = Color(0.62, 0.745, 0.933, 1)
+shader_parameter/target_base = Color(0.62, 0.745, 0.933, 1)
+shader_parameter/target_shade = Color(0.356863, 0.556863, 0.788235, 1)
+shader_parameter/eye_left = Vector4(0, 0, 0.0001, 0.0001)
+shader_parameter/eye_right = Vector4(0, 0, 0.0001, 0.0001)
 
 [sub_resource type="CircleShape2D" id="BodyShape"]
 radius = 195.0
@@ -50,22 +63,20 @@ layer = -1
 follow_viewport_enabled = true
 script = ExtResource("2")
 
-[node name="SkyBackdrop" type="ColorRect" parent="EnvironmentLayer"]
+[node name="SkyBackdrop" type="TextureRect" parent="EnvironmentLayer"]
 z_index = -30
-offset_left = -400.0
-offset_top = -500.0
-offset_right = 1480.0
-offset_bottom = 2600.0
+offset_right = 1080.0
+offset_bottom = 1920.0
 mouse_filter = 2
-color = Color(0.207843, 0.160784, 0.372549, 1)
+texture = ExtResource("22")
+expand_mode = 1
 
 [node name="WindowGlassRain" type="ColorRect" parent="EnvironmentLayer"]
 z_index = -20
 material = SubResource("RainMaterial")
-offset_left = 40.0
-offset_top = 100.0
-offset_right = 1040.0
-offset_bottom = 1440.0
+offset_left = 150.0
+offset_right = 980.0
+offset_bottom = 900.0
 mouse_filter = 2
 
 [node name="WindowFrameProps" type="Control" parent="EnvironmentLayer"]
@@ -97,46 +108,59 @@ shape = SubResource("BodyShape")
 [node name="VisualRoot" type="Node2D" parent="BloopieActor"]
 
 [node name="DropShadow" type="Sprite2D" parent="BloopieActor/VisualRoot"]
+visible = false
+position = Vector2(0, 30)
 script = ExtResource("7")
 part = "shadow"
 
 [node name="BackTufts" type="Sprite2D" parent="BloopieActor/VisualRoot"]
-material = SubResource("PlushMaterial")
-script = ExtResource("7")
-part = "tufts"
+visible = false
 
 [node name="BodyBase" type="Sprite2D" parent="BloopieActor/VisualRoot"]
 material = SubResource("PlushMaterial")
-script = ExtResource("7")
-part = "body"
+texture = ExtResource("23")
+centered = false
+position = Vector2(-244.1, -383.7)
+scale = Vector2(0.6406, 0.6406)
 
 [node name="TopCurl" type="Node2D" parent="BloopieActor/VisualRoot"]
-material = SubResource("PlushMaterial")
-position = Vector2(0, -186)
-script = ExtResource("7")
-part = "curl"
+visible = false
 
 [node name="FaceController" type="Node2D" parent="BloopieActor/VisualRoot"]
 script = ExtResource("8")
 
 [node name="EyesSprite" type="AnimatedSprite2D" parent="BloopieActor/VisualRoot/FaceController"]
-script = ExtResource("7")
-part = "eyes"
+material = SubResource("PatchMaterial")
+centered = false
+position = Vector2(-244.1, -383.7)
+scale = Vector2(0.6406, 0.6406)
 
 [node name="BlushSprite" type="Sprite2D" parent="BloopieActor/VisualRoot/FaceController"]
-script = ExtResource("7")
-part = "blush"
+visible = false
+
+[node name="BrowsCover" type="Sprite2D" parent="BloopieActor/VisualRoot/FaceController"]
+material = SubResource("PatchMaterial")
+texture = ExtResource("24")
+centered = false
+position = Vector2(-244.1, -383.7)
+scale = Vector2(0.6406, 0.6406)
 
 [node name="MouthTeeth" type="AnimatedSprite2D" parent="BloopieActor/VisualRoot/FaceController"]
+material = SubResource("PatchMaterial")
+centered = false
+position = Vector2(-244.1, -383.7)
+scale = Vector2(0.6406, 0.6406)
+
+[node name="FaceInk" type="Node2D" parent="BloopieActor/VisualRoot/FaceController"]
 script = ExtResource("7")
-part = "mouth"
+part = "face_ink"
 
 [node name="FrontPaws" type="Sprite2D" parent="BloopieActor/VisualRoot"]
-material = SubResource("PlushMaterial")
-script = ExtResource("7")
-part = "paws"
+visible = false
 
 [node name="HatSlot" type="Sprite2D" parent="BloopieActor/VisualRoot"]
+position = Vector2(-6, -8)
+scale = Vector2(1.08, 1.1)
 script = ExtResource("7")
 part = "hat"
 
@@ -171,10 +195,10 @@ script = ExtResource("9")
 [node name="SpeechBubble" type="PanelContainer" parent="BloopieActor"]
 visible = false
 z_index = 5
-offset_left = -400.0
-offset_top = -560.0
-offset_right = 400.0
-offset_bottom = -404.0
+offset_left = -345.0
+offset_top = -494.0
+offset_right = 345.0
+offset_bottom = -338.0
 mouse_filter = 2
 
 [node name="MarginContainer" type="MarginContainer" parent="BloopieActor/SpeechBubble"]
@@ -192,6 +216,10 @@ autowrap_mode = 3
 
 [node name="Camera2D" type="Camera2D" parent="."]
 position = Vector2(540, 960)
+limit_left = 0
+limit_top = 0
+limit_right = 1080
+limit_bottom = 1920
 
 [node name="HUD" type="CanvasLayer" parent="."]
 
@@ -271,6 +299,16 @@ horizontal_alignment = 1
 vertical_alignment = 1
 autowrap_mode = 3
 
+[node name="ChatBack" type="Button" parent="HUD"]
+visible = false
+offset_left = 36.0
+offset_top = 190.0
+offset_right = 146.0
+offset_bottom = 300.0
+icon = ExtResource("29")
+icon_alignment = 1
+expand_icon = true
+
 [node name="QuickReplies" type="HBoxContainer" parent="HUD"]
 visible = false
 anchors_preset = 12
@@ -334,7 +372,7 @@ anchor_top = 1.0
 anchor_right = 1.0
 anchor_bottom = 1.0
 offset_left = 24.0
-offset_top = -720.0
+offset_top = -612.0
 offset_right = -24.0
 offset_bottom = -296.0
 grow_horizontal = 2
@@ -371,25 +409,25 @@ theme_override_constants/separation = 18
 layout_mode = 2
 size_flags_horizontal = 3
 text = "Чат"
-icon = ExtResource("15")
+icon = ExtResource("25")
 
 [node name="BtnCare" type="Button" parent="HUD/BottomDock"]
 layout_mode = 2
 size_flags_horizontal = 3
 text = "Забота"
-icon = ExtResource("13")
+icon = ExtResource("26")
 
 [node name="BtnPlay" type="Button" parent="HUD/BottomDock"]
 layout_mode = 2
 size_flags_horizontal = 3
 text = "Игра"
-icon = ExtResource("16")
+icon = ExtResource("27")
 
 [node name="BtnSleep" type="Button" parent="HUD/BottomDock"]
 layout_mode = 2
 size_flags_horizontal = 3
 text = "Сон"
-icon = ExtResource("17")
+icon = ExtResource("28")
 
 [node name="VocalMinigame" type="Control" parent="HUD"]
 visible = false

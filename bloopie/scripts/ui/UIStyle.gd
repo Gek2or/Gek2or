@@ -6,7 +6,7 @@ extends RefCounted
 const INK := Color("#232946")
 const TEXT := Color("#5A4250")
 const CREAM := Color("#FFF8EE")
-const TILE := Color("#FFF0E0")
+const TILE := Color("#FCE8D6")
 const SKY := Color("#BFE0FB")
 const ROSE := Color("#FBC4D6")
 const LILAC := Color("#D6C4FB")

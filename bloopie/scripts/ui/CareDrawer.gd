@@ -1,6 +1,6 @@
 extends PanelContainer
-## Care panel from the mock-up: a happiness bar on top, then cream tiles for
-## treats, the bubble bath and customization. Emits `action_requested`;
+## Care panel from the mock-up: a happiness bar on top, then four cream tiles:
+## cocoa, berry tart, themes and hats. Emits `action_requested`;
 ## MainRoom decides what each action does.
 
 signal action_requested(action: String)
@@ -8,12 +8,10 @@ signal action_requested(action: String)
 const COCOA_PRICE := 5
 const TART_PRICE := 10
 const ACTIONS := [
-	{"id": "cocoa", "title": "Какао · 5", "icon": "res://art/icons/cocoa.svg"},
-	{"id": "tart", "title": "Тарт · 10", "icon": "res://art/icons/tart.svg"},
-	{"id": "wash", "title": "Умыть", "icon": "res://art/icons/wash.svg"},
-	{"id": "theme", "title": "Темы", "icon": "res://art/icons/theme.svg"},
-	{"id": "hat", "title": "Шапочки", "icon": "res://art/icons/hat.svg"},
-	{"id": "weather", "title": "Погода", "icon": "res://art/icons/weather.svg"},
+	{"id": "cocoa", "title": "Какао", "icon": "res://art/painted/icon_cocoa.png"},
+	{"id": "tart", "title": "Тарт", "icon": "res://art/painted/icon_tart.png"},
+	{"id": "theme", "title": "Темы", "icon": "res://art/painted/icon_theme.png"},
+	{"id": "hat", "title": "Шапочки", "icon": "res://art/painted/icon_hat.png"},
 ]
 
 var _happiness: ProgressBar
@@ -42,7 +40,7 @@ func _ready() -> void:
 	_happiness.add_child(_happiness_label)
 
 	var grid := GridContainer.new()
-	grid.columns = 3
+	grid.columns = 4
 	grid.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	grid.add_theme_constant_override("h_separation", 20)
 	grid.add_theme_constant_override("v_separation", 20)
@@ -53,8 +51,8 @@ func _ready() -> void:
 		button.icon = load(action.icon)
 		button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		button.size_flags_vertical = Control.SIZE_EXPAND_FILL
-		button.custom_minimum_size = Vector2(0, 138)
-		UIStyle.tile(button, 28, 62)
+		button.custom_minimum_size = Vector2(0, 190)
+		UIStyle.tile(button, 30, 104)
 		button.pressed.connect(func() -> void: action_requested.emit(action.id))
 		grid.add_child(button)
 

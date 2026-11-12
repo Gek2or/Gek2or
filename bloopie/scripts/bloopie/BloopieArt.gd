@@ -27,6 +27,20 @@ const TEETH_HEIGHT := 19.5
 
 static var _glow_texture: GradientTexture2D
 
+## Painted face layout (VisualRoot units): eye centres, brow centres, mouth.
+const PAINT_INK := Color("#252246")
+const PAINTED_EYES: Array[Vector2] = [Vector2(-52, -34), Vector2(106, -38)]
+const PAINTED_BROWS: Array[Vector2] = [Vector2(-50, -116), Vector2(98, -120)]
+const PAINTED_MOUTH := Vector2(42, 44)
+## Per expression: inner end dy, outer end dy, lift of the right brow, lift of the left brow.
+const PAINTED_BROW_SHAPES := {
+	"sad": [-14.0, 8.0, 0.0, 0.0],
+	"angry": [20.0, -8.0, 14.0, 14.0],
+	"surprised": [0.0, 0.0, -16.0, -16.0],
+	"curious": [0.0, 0.0, -18.0, 2.0],
+	"confused": [0.0, 0.0, -18.0, 6.0],
+}
+
 const CLOSED_EYES: Array[String] = ["sleepy", "laugh"]
 const OPEN_MOUTH: Array[String] = ["excited", "laugh"]
 
@@ -421,6 +435,53 @@ static func draw_teeth(ci: CanvasItem, top_center: Vector2) -> void:
 	ci.draw_line(top_center + Vector2(0, 1), top_center + Vector2(0, TEETH_HEIGHT - 1.0), INK, 2.5, true)
 
 
+# --- Ink overlay for the painted sprite ----------------------------------------------------
+
+## Draws the parts of an expression that the painted face patches do not cover:
+## closed eyelids, expressive brows and the non-smiling mouths. Positions follow
+## the painted three-quarter face, in VisualRoot coordinates.
+static func draw_face_ink(ci: CanvasItem, s: Dictionary) -> void:
+	var expression: String = "sleepy" if s.sleeping else s.expression
+	var laughing := expression in ["laugh", "love"]
+	if (s.blink > 0.5 or expression == "sleepy") and not laughing:
+		for i in 2:
+			var center: Vector2 = PAINTED_EYES[i]
+			var side := -1.0 if i == 0 else 1.0
+			var half_width := 46.0 if i == 0 else 40.0
+			var lid := arc(center + Vector2(0, -6), half_width, 26.0, PI * 0.08, PI * 0.92, 18)
+			ci.draw_polyline(lid, PAINT_INK, 8.0, true)
+			var corner := lid[0] if side > 0.0 else lid[lid.size() - 1]
+			for lash in 3:
+				var tip := corner + Vector2(side * (15.0 + lash * 2.0), -10.0 + lash * 11.0)
+				ci.draw_line(corner, tip, PAINT_INK, 5.0, true)
+	if not laughing and PAINTED_BROW_SHAPES.has(expression):
+		var shape: Array = PAINTED_BROW_SHAPES[expression]
+		for i in 2:
+			var side := -1.0 if i == 0 else 1.0
+			var lift: float = shape[2] if i == 1 else shape[3]
+			var center: Vector2 = PAINTED_BROWS[i] + Vector2(0, lift)
+			var inner := center + Vector2(-side * 30.0, shape[0])
+			var outer := center + Vector2(side * 30.0, shape[1])
+			var middle := (inner + outer) * 0.5 + Vector2(0, -7)
+			ci.draw_polyline(PackedVector2Array([inner, middle, outer]), PAINT_INK, 8.0, true)
+	if laughing or s.talk > 0.4 or expression == "excited":
+		return
+	var mouth := PAINTED_MOUTH
+	match expression:
+		"sad":
+			ci.draw_polyline(arc(mouth + Vector2(0, 26), 40.0, 20.0, PI * 1.16, PI * 1.84, 16), PAINT_INK, 7.0, true)
+			draw_teeth(ci, mouth + Vector2(0, 7))
+		"angry":
+			var line := PackedVector2Array([mouth + Vector2(-36, 12), mouth + Vector2(-12, 5), mouth + Vector2(12, 5), mouth + Vector2(36, 12)])
+			ci.draw_polyline(line, PAINT_INK, 7.0, true)
+			draw_teeth(ci, mouth + Vector2(0, 6))
+		"surprised", "confused":
+			var o_center := mouth + Vector2(0, 14)
+			var o_height := 22.0 if expression == "surprised" else 15.0
+			blob(ci, ellipse(o_center, 19.0, o_height, 24), Color("#5A2A48"), 6.0)
+			draw_teeth(ci, o_center + Vector2(0, -o_height + 2.0))
+
+
 # --- Hats ----------------------------------------------------------------------------------
 
 static func draw_hat(ci: CanvasItem, s: Dictionary) -> void:
@@ -475,6 +536,10 @@ static func _draw_hood(ci: CanvasItem, fill: Color, shade: Color, knitted: bool)
 
 static func draw_decor(ci: CanvasItem, s: Dictionary) -> void:
 	var t: float = s.time
+	if s.theme_id == "night":
+		var belly_stars := [Vector3(-70, 130, 13), Vector3(-6, 150, 9), Vector3(52, 126, 11), Vector3(-24, 110, 7), Vector3(100, 92, 7)]
+		for star: Vector3 in belly_stars:
+			star4(ci, Vector2(star.x, star.y), star.z + 2.0 * sin(t * 2.0 + star.x), STAR, 0.0)
 	if s.bubbles > 0.0:
 		for i in 9:
 			var phase := fmod(t * 0.55 + i * 0.37, 1.0)

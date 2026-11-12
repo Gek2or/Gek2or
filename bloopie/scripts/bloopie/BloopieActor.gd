@@ -10,15 +10,23 @@ signal woke_up
 signal speech_finished
 
 const BODY_RADIUS := 195.0
-const BODY_BOTTOM := 190.0
+## Where the painted feet rest, in VisualRoot units below the body centre.
+const BODY_BOTTOM := 230.0
+const PAINTING_SOURCE_WIDTH := 1124.0
+const PAINTING_CANVAS_WIDTH := 1080.0
+## Eyes in source painting pixels: position = centre, size = radii.
+const PAINTED_EYE_LEFT := Rect2(484, 1063, 81, 98)
+const PAINTED_EYE_RIGHT := Rect2(725, 1059, 73, 95)
+const BODY_NORMAL := preload("res://art/painted/bloopie_body.png")
+const BODY_WIZARD := preload("res://art/painted/bloopie_wizard.png")
 const PET_SWIPE_LENGTH := 140.0
 const TAP_MAX_TRAVEL := 24.0
 const PET_VIBRATION_MS := 35
 const TYPE_SPEED := 30.0
 const IDLE_ACTION_MIN := 18.0
 const IDLE_ACTION_MAX := 32.0
-const BUBBLE_WIDTH := 800.0
-const BUBBLE_BOTTOM := -404.0
+const BUBBLE_WIDTH := 690.0
+const BUBBLE_BOTTOM := -338.0
 const BUBBLE_FONT_SIZE := 39
 ## The actor is drawn 1.5x; the bubble is scaled back so its text stays UI-sized.
 const BUBBLE_SCALE := Vector2(0.75, 0.75)
@@ -65,12 +73,13 @@ var _bubble_sticky := false
 var _bubble_tail: Polygon2D
 var _theme_tween: Tween
 var _plush_material: ShaderMaterial
+var _patch_material: ShaderMaterial
 var _sfx := {}
 var _rng := RandomNumberGenerator.new()
 
 @onready var _visual: Node2D = $VisualRoot
 @onready var _face: Node2D = $VisualRoot/FaceController
-@onready var _curl: Node2D = $VisualRoot/TopCurl
+@onready var _body: Sprite2D = $VisualRoot/BodyBase
 @onready var _hat: Node2D = $VisualRoot/HatSlot
 @onready var _decor: Node2D = $VisualRoot/EmoteDecor
 @onready var _ball: Node2D = $PlayBall
@@ -93,10 +102,11 @@ func _ready() -> void:
 	state.theme_id = GameState.current_theme
 	state.hat = GameState.current_hat
 	state.stage = GameState.get_growth_stage()
-	_plush_material = ($VisualRoot/BodyBase as CanvasItem).material as ShaderMaterial
+	_plush_material = _body.material as ShaderMaterial
+	_patch_material = ($VisualRoot/FaceController/BrowsCover as CanvasItem).material as ShaderMaterial
+	_align_painted_layers()
 	_set_plush_colors(state.palette.base, state.palette.shade)
-	for layer: Node in [$VisualRoot/DropShadow, $VisualRoot/BackTufts, $VisualRoot/BodyBase,
-			_curl, $VisualRoot/FrontPaws, _hat, _decor, _ball, _capsule]:
+	for layer: Node in [$VisualRoot/DropShadow, _hat, _decor, _ball, _capsule]:
 		layer.set("state", state)
 	_face.call("bind", state)
 	_build_sounds()
@@ -276,7 +286,7 @@ func _update_speech(delta: float) -> void:
 
 
 func _update_pose(delta: float) -> void:
-	var growth := GameState.get_growth_scale()
+	var growth := _growth()
 	var breath_speed := 1.1 if is_sleeping else 2.0
 	var breath := sin(state.time * breath_speed) * (0.022 if is_sleeping else 0.012)
 	var scale_now := Vector2(_squash.x * (1.0 - breath), _squash.y * (1.0 + breath)) * growth
@@ -285,11 +295,15 @@ func _update_pose(delta: float) -> void:
 	_visual.position = _anim_offset + Vector2(0, BODY_BOTTOM - BODY_BOTTOM * scale_now.y)
 	var tilt_target := deg_to_rad(7.0) if state.expression in ["curious", "confused"] and not is_sleeping else 0.0
 	_tilt = lerpf(_tilt, tilt_target, minf(1.0, delta * 6.0))
-	_visual.rotation = _tilt + _anim_tilt
-	# Secondary motion of the curl: a damped spring kicked by taps, pets and jumps.
+	# Bloopie leans a little towards the player's finger.
+	var look: Vector2 = state.look
+	_visual.position.x += look.x * 9.0
+	_visual.rotation = _tilt + _anim_tilt + look.x * 0.03
+	# Secondary motion: a damped spring kicked by taps, pets and jumps sways the
+	# whole plush body, the curl on top most of all.
 	_curl_velocity += (-_curl_angle * 90.0 - _curl_velocity * 7.0) * delta
 	_curl_angle += _curl_velocity * delta
-	_curl.rotation = _curl_angle + sin(state.time * 1.7) * 0.035
+	_visual.skew = _curl_angle * 0.22 + sin(state.time * 1.7) * 0.008
 
 
 func _update_idle_actions(delta: float) -> void:
@@ -335,12 +349,18 @@ func _unhandled_input(event: InputEvent) -> void:
 		_look_at(_to_world(event.position))
 
 
+## Growth relative to the painted size: the art shows Bloopie as a Lv.1 baby
+## (0.92 of the teen size), so he only ever grows out of his painted spot.
+func _growth() -> float:
+	return GameState.get_growth_scale() / 0.92
+
+
 func _to_world(canvas_position: Vector2) -> Vector2:
 	return get_canvas_transform().affine_inverse() * canvas_position
 
 
 func _is_on_body(world: Vector2) -> bool:
-	return world.distance_to(global_position) <= (BODY_RADIUS * GameState.get_growth_scale() + 20.0) * global_scale.x
+	return world.distance_to(global_position) <= (BODY_RADIUS * _growth() + 20.0) * global_scale.x
 
 
 func _look_at(world: Vector2) -> void:
@@ -521,10 +541,10 @@ func _redraw_all() -> void:
 
 
 func _apply_hat() -> void:
+	# The wizard hat is painted together with the body; the hoods are drawn on top.
+	_body.texture = BODY_WIZARD if state.hat == "wizard" else BODY_NORMAL
+	_hat.visible = state.hat != "wizard"
 	_hat.queue_redraw()
-	# The wizard hat covers the curl; hoods let it poke through on top.
-	_curl.visible = state.hat != "wizard"
-	_curl.z_index = 1 if state.hat in ["cosy", "cat", "frog"] else 0
 
 
 func _on_theme_changed(theme_id: String) -> void:
@@ -545,8 +565,11 @@ func _on_theme_changed(theme_id: String) -> void:
 
 
 func _set_plush_colors(base: Color, shade: Color) -> void:
-	_plush_material.set_shader_parameter("target_base", base)
-	_plush_material.set_shader_parameter("target_shade", shade)
+	# The body and the face patches use separate materials: only the body keeps
+	# the irises blue, the patches (plush painted over the eyes) follow the theme.
+	for plush: ShaderMaterial in [_plush_material, _patch_material]:
+		plush.set_shader_parameter("target_base", base)
+		plush.set_shader_parameter("target_shade", shade)
 
 
 func _on_hat_changed(hat_id: String) -> void:
@@ -576,6 +599,32 @@ func _on_frozen_changed(frozen: bool) -> void:
 		_hide_bubble()
 		if is_sleeping:
 			wake_up()
+
+
+## Places the painted sprite and its face patches exactly where Bloopie sits in
+## the room painting. The crop box comes from painted.json, so re-exporting the
+## art never needs a scene edit.
+func _align_painted_layers() -> void:
+	var parsed: Variant = JSON.parse_string(FileAccess.get_file_as_string("res://art/painted/painted.json"))
+	if typeof(parsed) != TYPE_DICTIONARY or not parsed.has("sprite_box"):
+		push_warning("BloopieActor: painted.json is missing or broken")
+		return
+	var box: Array = parsed["sprite_box"]
+	var origin := Vector2(box[0], box[1])
+	var size := Vector2(box[2] - box[0], box[3] - box[1])
+	# Source painting pixels -> room canvas -> this actor's local units.
+	var to_canvas := PAINTING_CANVAS_WIDTH / PAINTING_SOURCE_WIDTH
+	var layer_scale := Vector2.ONE * to_canvas / scale.x
+	var layer_position := (origin * to_canvas - position) / scale
+	for layer: Node2D in [_body, $VisualRoot/FaceController/EyesSprite,
+			$VisualRoot/FaceController/BrowsCover, $VisualRoot/FaceController/MouthTeeth]:
+		layer.position = layer_position
+		layer.scale = layer_scale
+	# The irises keep their blue in every theme: tell the shader where they are.
+	for item: Array in [["eye_left", PAINTED_EYE_LEFT], ["eye_right", PAINTED_EYE_RIGHT]]:
+		var eye: Rect2 = item[1]
+		var center := (eye.position - origin) / size
+		_plush_material.set_shader_parameter(item[0], Vector4(center.x, center.y, eye.size.x / size.x, eye.size.y / size.y))
 
 
 # --- Generated resources ----------------------------------------------------------------------
