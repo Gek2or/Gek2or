@@ -441,6 +441,8 @@ static func draw_teeth(ci: CanvasItem, top_center: Vector2) -> void:
 ## closed eyelids, expressive brows and the non-smiling mouths. Positions follow
 ## the painted three-quarter face, in VisualRoot coordinates.
 static func draw_face_ink(ci: CanvasItem, s: Dictionary) -> void:
+	if s.get("pose", "") != "" or s.get("painted_face", false):
+		return
 	var expression: String = "sleepy" if s.sleeping else s.expression
 	var laughing := expression in ["laugh", "love"]
 	if (s.blink > 0.5 or expression == "sleepy") and not laughing:

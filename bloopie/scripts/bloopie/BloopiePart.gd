@@ -12,6 +12,8 @@ var state := {}
 func _draw() -> void:
 	if state.is_empty() or _has_painted_art():
 		return
+	if part == "capsule" and state.get("capsule_painted", false):
+		return
 	match part:
 		"shadow":
 			BloopieArt.draw_shadow(self, state)

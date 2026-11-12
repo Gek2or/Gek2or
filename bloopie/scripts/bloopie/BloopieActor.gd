@@ -12,13 +12,10 @@ signal speech_finished
 const BODY_RADIUS := 195.0
 ## Where the painted feet rest, in VisualRoot units below the body centre.
 const BODY_BOTTOM := 230.0
-const PAINTING_SOURCE_WIDTH := 1124.0
-const PAINTING_CANVAS_WIDTH := 1080.0
 ## Eyes in source painting pixels: position = centre, size = radii.
 const PAINTED_EYE_LEFT := Rect2(484, 1063, 81, 98)
 const PAINTED_EYE_RIGHT := Rect2(725, 1059, 73, 95)
-const BODY_NORMAL := preload("res://art/painted/bloopie_body.png")
-const BODY_WIZARD := preload("res://art/painted/bloopie_wizard.png")
+const STAGE_NAMES: Array[String] = ["", "teen", "adult"]
 const PET_SWIPE_LENGTH := 140.0
 const TAP_MAX_TRAVEL := 24.0
 const PET_VIBRATION_MS := 35
@@ -46,6 +43,9 @@ var state := {
 	"sleeping": false,
 	"bubbles": 0.0,
 	"time": 0.0,
+	# Painted pose currently shown instead of the face layers ("" = none).
+	"pose": "",
+	"capsule_painted": false,
 }
 
 var is_sleeping := false
@@ -178,6 +178,9 @@ func fall_asleep() -> void:
 	if not _bubble_sticky:
 		_hide_bubble()
 	_redraw_all()
+	if _set_pose("curl"):
+		# The painted sleeping pose already lies down; no squash needed.
+		return
 	_body_tween = create_tween().set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
 	_body_tween.tween_property(self, "_squash", Vector2(1.1, 0.84), 0.9)
 
@@ -187,6 +190,7 @@ func wake_up() -> void:
 		return
 	is_sleeping = false
 	state.sleeping = false
+	_set_pose("")
 	_redraw_all()
 	_stop_body_tween()
 	_body_tween = create_tween().set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
@@ -423,6 +427,7 @@ func _end_animation() -> void:
 	_anim_offset = Vector2.ZERO
 	_anim_tilt = 0.0
 	_ball.visible = false
+	_set_pose("")
 
 
 func _stop_body_tween() -> void:
@@ -441,20 +446,25 @@ func _animate_walk() -> void:
 func _walk_step(t: float) -> void:
 	_anim_offset = Vector2(sin(t * TAU) * -78.0, -absf(sin(t * TAU * 4.0)) * 10.0)
 	_anim_tilt = sin(t * TAU * 4.0) * 0.07 * sin(t * PI)
+	_set_pose("walk_a" if sin(t * TAU * 4.0) >= 0.0 else "walk_b")
 
 
 func _animate_jump() -> void:
 	var tween := _begin_animation()
 	show_emotion("excited", 1.6)
+	_set_pose("crouch")
 	tween.tween_property(self, "_squash", Vector2(1.18, 0.8), 0.16).set_trans(Tween.TRANS_SINE)
-	tween.tween_callback(func() -> void: _curl_velocity -= 7.0)
+	tween.tween_callback(func() -> void:
+		_curl_velocity -= 7.0
+		_set_pose("air"))
 	tween.tween_property(self, "_squash", Vector2(0.88, 1.14), 0.1)
 	tween.parallel().tween_property(self, "_anim_offset", Vector2(0, -170), 0.3).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
 	tween.tween_property(self, "_anim_offset", Vector2.ZERO, 0.26).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
 	tween.parallel().tween_property(self, "_squash", Vector2.ONE, 0.26)
 	tween.tween_callback(func() -> void:
 		play_sound("pop")
-		_curl_velocity += 8.0)
+		_curl_velocity += 8.0
+		_set_pose("crouch"))
 	tween.tween_property(self, "_squash", Vector2(1.2, 0.8), 0.08)
 	tween.tween_property(self, "_squash", Vector2.ONE, 0.5).set_trans(Tween.TRANS_ELASTIC).set_ease(Tween.EASE_OUT)
 
@@ -464,6 +474,7 @@ func _animate_play() -> void:
 	show_emotion("excited", 3.4)
 	_ball.visible = true
 	_ball.position = Vector2(250, BODY_BOTTOM - 40.0)
+	_set_pose("reach")
 	tween.tween_method(_play_step, 0.0, 1.0, 3.4)
 
 
@@ -541,10 +552,41 @@ func _redraw_all() -> void:
 
 
 func _apply_hat() -> void:
-	# The wizard hat is painted together with the body; the hoods are drawn on top.
-	_body.texture = BODY_WIZARD if state.hat == "wizard" else BODY_NORMAL
-	_hat.visible = state.hat != "wizard"
+	_refresh_body()
+	# A hat with its own painted body needs no drawn hood on top.
+	_hat.visible = state.hat != "none" and PaintedArt.entry("bodies", state.hat).is_empty()
 	_hat.queue_redraw()
+
+
+## Shows a painted pose instead of the usual body and face. Returns false (and
+## changes nothing) when that pose has not been painted yet or a hat is on:
+## the poses are painted bare-headed, and the transform animation covers both.
+func _set_pose(pose: String) -> bool:
+	if pose != "" and (state.hat != "none" or PaintedArt.entry("poses", pose).is_empty()):
+		pose = ""
+	if state.pose != pose:
+		state.pose = pose
+		_refresh_body()
+		_face.call("redraw")
+	return pose != ""
+
+
+## Picks the body picture: pose, then hat, then growth stage, then the base.
+func _refresh_body() -> void:
+	var picture := {}
+	if state.pose != "":
+		picture = PaintedArt.entry("poses", state.pose)
+	if picture.is_empty() and state.hat != "none":
+		picture = PaintedArt.entry("bodies", state.hat)
+	if picture.is_empty() and state.hat == "none" and state.stage > 1:
+		picture = PaintedArt.entry("stages", STAGE_NAMES[state.stage - 1])
+	if picture.is_empty():
+		picture = PaintedArt.entry("bodies", "none")
+	if picture.is_empty():
+		return
+	_body.texture = PaintedArt.texture(picture.file)
+	PaintedArt.place(_body, picture.box, self)
+	_set_eye_mask(picture.box)
 
 
 func _on_theme_changed(theme_id: String) -> void:
@@ -580,6 +622,7 @@ func _on_hat_changed(hat_id: String) -> void:
 
 func _on_level_changed(_level: int) -> void:
 	state.stage = GameState.get_growth_stage()
+	_refresh_body()
 	_redraw_all()
 	play_sound("chime")
 	show_emotion("proud", 4.0)
@@ -601,26 +644,28 @@ func _on_frozen_changed(frozen: bool) -> void:
 			wake_up()
 
 
-## Places the painted sprite and its face patches exactly where Bloopie sits in
-## the room painting. The crop box comes from painted.json, so re-exporting the
-## art never needs a scene edit.
+## Places the face patches exactly over the painted body and sets up the
+## painted stasis dome when there is one. The boxes come from painted.json, so
+## re-exporting the art never needs a scene edit.
 func _align_painted_layers() -> void:
-	var parsed: Variant = JSON.parse_string(FileAccess.get_file_as_string("res://art/painted/painted.json"))
-	if typeof(parsed) != TYPE_DICTIONARY or not parsed.has("sprite_box"):
-		push_warning("BloopieActor: painted.json is missing or broken")
-		return
-	var box: Array = parsed["sprite_box"]
+	for layer: Node2D in [$VisualRoot/FaceController/EyesSprite,
+			$VisualRoot/FaceController/BrowsCover, $VisualRoot/FaceController/MouthTeeth]:
+		PaintedArt.place(layer, PaintedArt.sprite_box(), self)
+	var dome := PaintedArt.entry("capsule", "capsule")
+	if not dome.is_empty():
+		var sprite := Sprite2D.new()
+		sprite.texture = PaintedArt.texture(dome.file)
+		sprite.centered = false
+		_capsule.add_child(sprite)
+		PaintedArt.place(sprite, dome.box, self)
+		state.capsule_painted = true
+
+
+## The irises keep their blue in every theme: tell the shader where they are
+## inside the body picture whose crop box is `box`.
+func _set_eye_mask(box: Array) -> void:
 	var origin := Vector2(box[0], box[1])
 	var size := Vector2(box[2] - box[0], box[3] - box[1])
-	# Source painting pixels -> room canvas -> this actor's local units.
-	var to_canvas := PAINTING_CANVAS_WIDTH / PAINTING_SOURCE_WIDTH
-	var layer_scale := Vector2.ONE * to_canvas / scale.x
-	var layer_position := (origin * to_canvas - position) / scale
-	for layer: Node2D in [_body, $VisualRoot/FaceController/EyesSprite,
-			$VisualRoot/FaceController/BrowsCover, $VisualRoot/FaceController/MouthTeeth]:
-		layer.position = layer_position
-		layer.scale = layer_scale
-	# The irises keep their blue in every theme: tell the shader where they are.
 	for item: Array in [["eye_left", PAINTED_EYE_LEFT], ["eye_right", PAINTED_EYE_RIGHT]]:
 		var eye: Rect2 = item[1]
 		var center := (eye.position - origin) / size
